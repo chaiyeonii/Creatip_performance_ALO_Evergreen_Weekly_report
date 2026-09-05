@@ -17,3 +17,9 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# 검증 스크립트 생성물
+verify/wb_dump.json
+verify/summary.json
+verify/*.bak
+__pycache__/
