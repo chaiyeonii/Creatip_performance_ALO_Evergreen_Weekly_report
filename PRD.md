@@ -19,20 +19,22 @@
 | # | 입력 항목 | 형식 | 설명 |
 |---|---|---|---|
 | U1 | Campaign Period | 시작일 / 종료일 (date picker) | 캠페인 전체 기간. Raw Data 최초일을 기본 제안값으로 표시하되 사용자가 확정 |
-| U2 | Brand Search Budget | KRW (number) | 매체별 총 예산. 환율로 USD 변환하여 표시 |
-| U3 | Powerlink Budget | KRW (number) | 〃 |
-| U4 | 월별 환율 (KRW→USD) | `YYYY-MM` → number | **월별로 개별 입력.** 미입력 월의 데이터가 감지되면 리포트 생성을 차단하고 입력을 요구 |
+| U2 | Brand Search Budget | 현지통화 (number) | 매체별 예산. Media Summary·Sheet 2 Overview의 Budget 열에 사용. 환율로 USD 변환 |
+| U3 | Powerlink Budget | 현지통화 (number) | 〃 (Sheet 4) |
+| U3b | **월별 Advertising Budget** | `YYYY-MM` → USD | 데이터에 존재하는 월마다 개별 입력. **Sheet 1의 Advertising Budget = 이 값들의 합계** |
+| U4 | **Country / Currency** | dropdown | Raw Data의 통화 기준. Korea/KRW · Japan/JPY · United States/USD 등 17개 |
+| U4b | **Exchange Rate** | number | **캠페인 전체에 단일 환율 1개.** 월별 환율은 사용하지 않는다. 자동 조회 없이 직접 입력 (예: `1 USD = 1,400 KRW`). Currency가 USD면 변환 없음 |
 | U5 | Brand Search 정액료 (PC / MO) | KRW (number × 2) | 브랜드검색은 정액제라 Raw Data 총비용이 0원. **리포팅 기간 전체 금액**을 PC/MO로 나누어 입력 (예: PC 5,280,000 / MO 37,950,000) |
 | U5b | **Client** | text | **필수.** 모든 시트 제목·Campaign Information에 반영. 기본값 없음 (예: `ALO`, `FIGS`) |
 | U5b2 | **Campaign Name** | text | **필수.** 〃 (예: `Evergreen`, `Always-on`) |
-| U5c | Agency Fee | KRW (number) | Overall 시트 Campaign Information에 별도 행으로 표기. 캠페인 시작월 환율로 USD 변환. Advertising Budget·Total Spent와 합산하지 않음 |
+| U5c | **Agency Fee Rate** | % (number) | 퍼센트로 입력. Sheet 1에는 `Total Spent × Rate`로 **계산된 금액**을 표기 (퍼센트가 아님). 툴 화면에는 Rate와 계산 금액을 함께 표시 |
 | U6 | Keyword Mapping (KO→EN) | 표 (Category, KO, EN) | `keyword_mapping.csv`(315행)를 기본값으로 내장. 툴 내 표에서 편집·추가·CSV 교체 가능 |
 | U7 | Ad Group Mapping | 표 (Raw Ad Group → Standard) | Raw의 광고그룹명을 4개 표준값으로 정규화. 업로드 시 자동 추론 + 수동 수정 |
 | U8 | Data Through Date | date (기본값 = 자동) | 업로드 데이터의 최종일이 기본값. 필요 시 수동 override |
 
 **입력 규칙**
-- 환율은 **절대 자동 검색·추정하지 않는다.** 새로운 월의 데이터가 들어오면 반드시 모달로 물어본다.
-- 예산·정액료는 KRW로 입력받아 해당 월 환율로 USD 변환한다.
+- 환율은 **절대 자동 검색·추정하지 않는다.** 사용자가 직접 입력한다.
+- 예산·정액료는 선택한 통화로 입력받아 **캠페인 단일 환율**로 USD 변환한다.
 - VAT는 **제외 기준(Raw Data 총비용 그대로)** 을 사용한다.
 - **Client / Campaign Name은 필수**이며, 미입력 시 생성 버튼이 비활성화된다.
 - U1~U5 중 하나라도 미입력이면 **생성 버튼을 비활성화**하고 어떤 값이 비었는지 표시한다.
@@ -137,17 +139,18 @@ Powerlink의 광고그룹은 아래 **4개 표준값**으로 정규화한다.
 6. (일자 × 디바이스) 집계 → Daily Breakdown
 7. (일자 × 그룹 × 디바이스) 집계 → Daily Breakdown by Keyword Group
 8. (그룹 × 디바이스 × 키워드) 집계 → Keyword Breakdown
-9. KRW → USD 변환 (해당 월 환율)
+9. 현지통화 → USD 변환 (캠페인 단일 환율)
 10. 파생 지표 계산 (CTR / CPC / CPM)
 11. Sheet 2~5 생성 → Sheet 1(Overall)은 하위 시트 셀을 수식으로 참조
 
 ### 3.2 환율 적용
 
-- **월별 환율을 해당 월 데이터에만 적용.** 일자의 `YYYY-MM`으로 환율을 조회한다.
-- `Cost(USD) = Cost(KRW) / 환율(해당 월)`
-- 누적 Spend = 각 월 USD 변환값의 합. 전체를 단일 환율로 재변환하지 않는다.
-- 환율이 없는 월이 감지되면 → 생성 차단 + 해당 월 환율 입력 요구.
-- **Budget은 특정 일자에 귀속되지 않으므로 캠페인 시작월 환율로 변환**한다. (Spend만 월별 환율 적용)
+- **캠페인 전체에 동일한 환율 1개**를 적용한다. 월별 환율은 사용하지 않는다.
+- `Cost(USD) = Cost(현지통화) / Exchange Rate`
+- Country/Currency 드롭다운으로 Raw Data의 통화를 선택하고, 환율은 사용자가 직접 입력한다.
+- Currency가 `USD`면 환율 변환 없이 그대로 사용한다 (Sheet 1 표기: `USD (no conversion)`).
+- 환율 미입력 시 → 생성 차단.
+- Budget·정액료도 같은 환율로 변환한다.
 
 ### 3.3 Brand Search Cost 배분
 
@@ -231,6 +234,12 @@ CPM = Total Spend / Total Impression × 1000
 예시 — Client `ALO` / Campaign `Evergreen` → `ALO_Evergreen AD Summary`
 Client `FIGS` / Campaign `Always-on` → `FIGS_Always-on AD Summary`
 
+**Header 뒤 공백 행 규칙** — 전 시트 공통:
+
+- **Report Title과 모든 Section Header 다음에는 반드시 빈 행 1개**를 넣는다. 헤더 바로 다음 행부터 콘텐츠가 시작되지 않는다.
+- 적용 대상: Report Title(B2), `Overview`, `Daily Breakdown`, `Daily Breakdown by Keyword Group`, `Media Summary`, Keyword 시트 부제, 그리고 각 Keyword Group 밴드(Branded/Shoes/Competitors/Generic).
+- **적용하지 않는 곳**: 표의 컬럼 헤더 행. 컬럼 헤더 바로 아래에는 데이터(또는 TOTAL 행)가 이어진다.
+
 **Layout Offset 규칙** — 전 시트 공통:
 
 - **A열 = 완전 공백** (너비 2.4), **1행 = 완전 공백** (높이 9)
@@ -241,29 +250,32 @@ Client `FIGS` / Campaign `Always-on` → `FIGS_Always-on AD Summary`
 
 | 시트 | 행 배치 |
 |---|---|
-| 1 Overall | B2 제목 · B4 Campaign Information · B5~B11 항목 7행 · B13 Media Summary · B14 헤더 · B15~B17 데이터 |
-| 2 · 4 | B2 제목 · B4 Overview · B5 헤더 · B6 값 · B8 Daily Breakdown · B9~B10 2단 헤더 · B11 TOTAL · B12~ 일별 |
-| 3 · 5 | B2 제목 · B4 부제 · B5~B6 2단 헤더 · B7~ 데이터 |
+| 1 Overall | 2 제목 · 3 공백 · **4~10 기본 정보 7행** · 11 공백 · 12 `Media Summary` · 13 공백 · 14 헤더 · 15~17 데이터 |
+| 2 · 4 | 2 제목 · 3 공백 · 4 `Overview` · 5 공백 · 6 헤더 · 7 값 · 8 공백 · 9 `Daily Breakdown` · 10 공백 · 11~12 2단 헤더 · 13 TOTAL · 14~ 일별 |
+| 3 · 5 | 2 제목 · 3 공백 · 4 부제 · 5 공백 · 6~7 2단 헤더 · 8~ 데이터 |
 
 Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)** · `H~L` (MO 5열) 이다.
 
 ### Sheet 1 — Overall (Summary Report)
 
-정형화된 Excel Report Table 형태. 카드/대시보드형 레이아웃은 사용하지 않는다.
+정형화된 Excel Report Table 형태. 카드·대시보드형 레이아웃은 사용하지 않는다.
 
-**영역 ① Campaign Information** (라벨 + 값 2열 표, 값 셀은 B:D 병합)
+**영역 ① 기본 정보** — `Campaign Information` 섹션 헤더는 **두지 않는다.** 제목(B2) 아래 공백 행 하나를 두고 곧바로 정보표가 시작된다 (4~10행, 7개 항목).
 
 | 항목 | 값 | 산출 |
 |---|---|---|
 | Client | *(사용자 입력값)* | User Input — 하드코딩 금지 |
-| Campaign | *(사용자 입력값)* | User Input — 하드코딩 금지 |
-| Period | 2026-07-07 ~ 2026-08-06 | Campaign Period |
-| Total Spent | USD | Media Summary Total 행의 Spent를 **수식 참조** |
-| Advertising Budget | USD | Media Summary Total 행의 Budget을 **수식 참조** |
-| Agency Fee | USD | 사용자 입력(KRW) → 환율 변환 |
-| Exchange Rate | `1 USD = 1,385 KRW (2026-07) | 1 USD = 1,372 KRW (2026-08)` | 입력된 월별 환율 전체 |
+| Campaign | *(사용자 입력값)* | User Input. **Client명이 아니라 Campaign Name** |
+| Period | `2026.08.08 - 2026.09.06` | Campaign Period, `YYYY.MM.DD - YYYY.MM.DD` |
+| Total Spent | USD | Media Summary Total 행의 Spent를 **수식 참조** (Brand Search + Powerlink 실제 Spend) |
+| Advertising Budget | USD | **월별 Advertising Budget 입력값의 합계** (`SUM(All Monthly Budgets)`) |
+| Agency Fee | USD | **`= Total Spent 셀 × Agency Fee Rate`** 수식. 퍼센트가 아니라 계산된 금액을 표기 |
+| Exchange Rate | `1 USD = 1,400 KRW` | 선택한 Currency와 입력한 단일 환율. USD 선택 시 `USD (no conversion)` |
 
-**영역 ② Media Summary**
+- 라벨 셀과 값 셀 **모두 가로·세로 중앙 정렬**.
+- 값 셀은 `C:E` 병합.
+
+**영역 ② Media Summary** — 12행에 섹션 헤더, 13행 공백, 14행부터 표.
 
 | Campaign | Period | Media | Ad | Budget | Spent | Impression | Click | CTR | CPC | CPM |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -272,9 +284,9 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 - **반복되는 Campaign / Period / Media 값은 두 매체 행에 걸쳐 세로 병합** (Media = `Naver`)
 - Budget/Spent/Impression/Click은 Sheet 2·4의 Overview 셀을 **수식 참조**
 - CTR/CPC/CPM은 각 행의 합계 기준 **재계산**
-- Total 행: `Campaign~Ad` 4개 열을 가로 병합, 남색 배경 + 흰색 볼드로 데이터 행과 명확히 구분
+- Total 행: `Campaign~Ad` 4개 열을 가로 병합, 남색 배경 + 흰색 볼드
 
-**디자인 원칙**: 섹션 제목은 가로 전체를 쓰는 Bar, 불필요한 여백 최소화, 기존 ALO Report의 밀도 유지.
+> **Budget 두 갈래에 대한 주의** — 영역 ①의 Advertising Budget은 *월별* 입력 합계이고, 영역 ②의 Budget 열은 *매체별* 입력값이다. 서로 다른 입력이므로 툴 화면에서 두 합계를 비교해 **차이가 있으면 경고**한다.
 
 ### Sheet 2 — Brand Search
 
@@ -417,6 +429,8 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | 헤더 서식 | 진한 남색 배경 + 흰색 볼드, 2단 헤더 가운데 병합, 전 시트 동일 규칙 |
 | Device Group 구분 | 빈 열 삽입 없이 **medium 세로 테두리 + 블록별 헤더 색**으로 Total/PC/MO 분리 (Daily Breakdown) |
 | Layout Offset | **A열·1행 공백**, 모든 Content는 B2부터. 전 시트 동일 |
+| Header 뒤 공백 행 | Report Title·모든 Section Header 다음에 **빈 행 1개**. 표 컬럼 헤더는 예외 |
+| Sheet 1 정보표 정렬 | 라벨·값 셀 모두 **가로·세로 중앙 정렬** |
 | Report Title | 각 시트 B2에 `[Client]_[Campaign Name] …` 동적 생성. 브랜드명 하드코딩 금지 |
 | Keyword Spacer 열 | Keyword 시트는 PC(B~F) · **Spacer 1열 G(완전 공백, 너비 3)** · MO(H~L) 구성 |
 | TOTAL 행 위치 | Daily Breakdown은 헤더 바로 아래, Keyword 시트는 하단 |
@@ -438,7 +452,9 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | 키 | 내용 | 삭제 시점 |
 |---|---|---|
 | `campaign` | **Client, Campaign Name**, Campaign Period, Budget(BS/PL, KRW), Agency Fee | 사용자가 설정 초기화 시 |
-| `fxRates` | `{ "2026-07": 1385, "2026-08": 1372 }` | 사용자가 개별 수정/삭제 시 |
+| `fx` | `{ country:'KR', currency:'KRW', rate:1400 }` — 캠페인 단일 환율 | 사용자가 수정·삭제 시 |
+| `monthlyBudget` | `{ "2026-08": 30000, "2026-09": 16000 }` — 월별 Advertising Budget (USD) | 〃 |
+| `agencyFeeRate` | Agency Fee 퍼센트 (예: `8`) | 〃 |
 | `bsFixedFee` | `{ pc: 5280000, mo: 37950000 }` — 브랜드검색 기간 전체 정액료(KRW) | 〃 |
 | `keywordMap` | `[{ category, ko, en }]` — KO→EN 매핑 (기본 315행) | 사용자가 삭제/교체 시 |
 | `adGroupMap` | `{ "PC_Branded": "Branded", "MO_General": "Generic", ... }` | 사용자가 삭제/교체 시 |
@@ -472,6 +488,10 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | R8 | Campaign Period / Budget / 환율 | **툴의 Settings 화면에서 입력** (U1~U4). 미입력 시 생성 차단 |
 | R9 | 범용화 | Client / Campaign Name 입력 기반으로 제목·파일명·Campaign Information을 동적 생성. 코드에 브랜드명·캠페인명 하드코딩 없음 (검증 스크립트가 매 실행마다 확인) |
 | R10 | Layout Offset | 전 시트 A열·1행 공백, Content는 B2 시작 |
+| R11 | Header 뒤 공백 행 | 제목·섹션 헤더 다음 빈 행 1개 (표 컬럼 헤더는 제외) |
+| R12 | 환율 | **캠페인 단일 환율** + Country/Currency 드롭다운. 월별 환율 폐지 |
+| R13 | Advertising Budget | 월별 입력, Sheet 1은 합계 표시 |
+| R14 | Agency Fee | % 입력 → `Total Spent × Rate` 수식으로 금액 산출 |
 
 ### 미해결
 
@@ -482,9 +502,11 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | Q3 | Sheet 5의 그룹 소계에 **Cost를 추가할지** | 현재 헤더에 Cost 열이 없으므로 Imp/Click/CTR만 |
 | Q4 | 매핑 리스트의 `에슬레져` / `에슬레져룩` → `Esléger` / `Esléger Look` 표기가 의도된 것인지 (`애슬레저`=Athleisure의 다른 표기로 보임) | 리스트 그대로 유지. 확인 시 `Athleisure` / `Athleisure Look`으로 통일 |
 | Q5 | 일별 합계와 키워드 합계에 **7 KRW 오차** 존재(네이버 반올림) | **일별 리포트를 정본**으로 사용 (Spend는 일별에서만 산출) |
+| Q11 | Brand Search 정액료 입력 단위가 현지통화인데, 월별 Advertising Budget은 USD다 | 정액료·매체별 Budget은 현지통화, 월별 Budget은 USD. 통화 라벨을 UI에 명시 |
 | Q6 | Powerlink에서 제외한 `ALO Wellness Club` 캠페인의 향후 처리 | 현재 스코프 제외. 캠페인 필터는 Settings에서 변경 가능하도록 설계 |
 | Q7 | Excel에 브랜드 로고/컬러 등 **디자인 가이드** 적용 여부 | 기본 남색 헤더 테마 |
 | Q8 | **기존 ALO Weekly Report 원본 파일 미수령.** 레이아웃은 서면 규격대로 구현했으나 폰트·색상·열너비 등 세부 서식은 원본 대조 필요 | 첨부 파일 수령 시 재현도 보완 |
 | Q9 | Agency Fee가 Advertising Budget에 **포함되는 금액인지 별도인지** | 별도 항목으로 표기, 합산하지 않음 |
+| Q10 | **Budget 입력이 두 갈래**(월별 Advertising Budget / 매체별 Budget)로 나뉜다. 하나로 통합할지, 매체별을 월별에서 안분할지 | 둘 다 입력받고 **합계가 다르면 툴에서 경고**. Sheet 1 정보표는 월별 합계, Media Summary는 매체별 값 사용 |
 
 > **참고 — 번역 보정 내역**: 제공된 리스트에서 Generic 14개 키워드(겨울헬스복, 트레이닝세트, 요가커버업, 필라테스옷추천, 트레이닝복세트, 여성헬스복, 겨울트레이닝복세트, 필라테스복세트, 겨울트레이닝세트, 겨울요가바지, 겨울트레이닝복, 츄리닝세트, 요가상의, 연예인요가복)가 모두 `winter yoga wear`로 잘못 매핑되어 있어 개별 번역으로 보정했다. (`Winter gym wear`, `Training set`, `Yoga cover-up`, `Recommended Pilates clothing`, `Training wear set`, `Women's gym wear`, `Winter training wear set`, `Pilates outfit set`, `Winter training set`, `Winter yoga pants`, `Winter training wear`, `Tracksuit set`, `Yoga tops`, `Celebrity yoga wear`)
