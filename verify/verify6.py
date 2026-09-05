@@ -9,7 +9,7 @@ S = json.loads(io.open(os.path.join(SC, "summary.json"), encoding="utf-8").read(
 
 GROUPS = ["Branded", "Shoes", "Competitors", "Generic"]
 PC, SP, MO = 2, 9, 10          # column B, I, J
-COLS = ['Keyword (EN)', 'Keyword (KO)', 'Cost', 'Imp', 'Click', 'CTR', 'CPC']
+COLS = ['Keyword (EN)', 'Keyword (KO)', 'Spent', 'Imp', 'Click', 'CTR', 'CPC']
 fails = []
 
 
@@ -25,7 +25,7 @@ def val(sheet, r, c):
 
 
 print("=" * 100)
-print("A. KEYWORD SHEET COLUMNS — EN | KO | Cost | Imp | Click | CTR | CPC  (x2, spacer between)")
+print("A. KEYWORD SHEET COLUMNS — EN | KO | Spent | Imp | Click | CTR | CPC  (x2, spacer between)")
 print("=" * 100)
 for sheet, hdr_row in (("Brand Search Keywords", 7), ("Powerlink Keywords", 9)):
     pc = [disp(sheet, hdr_row, PC + i) for i in range(7)]
@@ -99,14 +99,14 @@ def count_rows(sheet, base, first):
 for sheet, total_row, label in (("Brand Search Keywords", 8, "Sheet 3"),):
     for base, dev in ((PC, "PC"), (MO, "MO")):
         n = count_rows(sheet, base, total_row + 1)
-        for off, name in ((2, "Cost"), (3, "Imp"), (4, "Click")):
+        for off, name in ((2, "Spent"), (3, "Imp"), (4, "Click")):
             want = block_sum(sheet, base, total_row + 1, n, off)
             got = disp(sheet, total_row, base + off)
             check(f"{label} {dev} TOTAL {name}", abs(got - want) < 0.01, f"{got:,.2f} vs {want:,.2f}")
         ctr, cpc = disp(sheet, total_row, base + 5), disp(sheet, total_row, base + 6)
         imp, clk, cost = (disp(sheet, total_row, base + o) for o in (3, 4, 2))
         check(f"{label} {dev} TOTAL CTR = Click/Imp", abs(ctr - clk / imp) < 1e-9, f"{ctr*100:.2f}%")
-        check(f"{label} {dev} TOTAL CPC = Cost/Click", abs(cpc - cost / clk) < 1e-9, f"{cpc:.4f}")
+        check(f"{label} {dev} TOTAL CPC = Spent/Click", abs(cpc - cost / clk) < 1e-9, f"{cpc:.4f}")
 
 for g, br in zip(GROUPS, band_rows):
     tr = br + 2
@@ -134,24 +134,24 @@ for g, br in zip(GROUPS, band_rows):
 
 print()
 print("=" * 100)
-print("F. COST TIES OUT")
+print("F. SPENT TIES OUT")
 print("=" * 100)
 bs_cost = disp('Brand Search Keywords', 8, PC + 2) + disp('Brand Search Keywords', 8, MO + 2)
-check("Sheet 3 TOTAL Cost == Sheet 2 Subtotal Spent",
-      abs(bs_cost - disp('Brand Search', 9, 6)) < 0.01,
-      f"{bs_cost:,.2f} vs {disp('Brand Search',9,6):,.2f}")
+check("Sheet 3 TOTAL Spent == Sheet 2 Subtotal Spent",
+      abs(bs_cost - disp('Brand Search', 8, 6)) < 0.01,
+      f"{bs_cost:,.2f} vs {disp('Brand Search',8,6):,.2f}")
 pl_cost = sum(disp('Powerlink Keywords', br + 2, b + 2) for br in band_rows for b in (PC, MO))
-check("Sheet 5 group Cost total ~= Sheet 4 Subtotal Spent",
-      abs(pl_cost - disp('Powerlink', 9, 6)) < 1.0,
-      f"{pl_cost:,.2f} vs {disp('Powerlink',9,6):,.2f}  (Naver rounding)")
+check("Sheet 5 group Spent total ~= Sheet 4 Subtotal Spent",
+      abs(pl_cost - disp('Powerlink', 8, 6)) < 1.0,
+      f"{pl_cost:,.2f} vs {disp('Powerlink',8,6):,.2f}  (Naver rounding)")
 
 print()
 print("=" * 100)
 print("G. POWERLINK BUDGET currency + formulas + merges")
 print("=" * 100)
 check("PL budget converted from its own currency",
-      abs(disp('Powerlink', 9, 5) - S["plBudget"]["total"]) < 0.01,
-      f"{disp('Powerlink',9,5):,.2f}")
+      abs(disp('Powerlink', 8, 5) - S["plBudget"]["total"]) < 0.01,
+      f"{disp('Powerlink',8,5):,.2f}")
 bad_merge = 0
 for n in wb["order"]:
     seen = set()
@@ -164,7 +164,7 @@ for n in wb["order"]:
 check("no overlapping merges", bad_merge == 0, str(bad_merge))
 bad, total_f = [], 0
 for n, s in wb["sheets"].items():
-    for r, c, kind, v, nf in s["cells"]:
+    for r, c, kind, v, nf in [(x[0],x[1],x[2],x[3],x[4]) for x in s["cells"]]:
         if kind != 'f':
             continue
         total_f += 1

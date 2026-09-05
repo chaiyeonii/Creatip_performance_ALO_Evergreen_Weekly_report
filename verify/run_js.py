@@ -40,7 +40,7 @@ var kRes = step('ingest keyword', function(){ return ingest(splitCsv(KW_CSV),   
 
 S.rawDaily   = dRes.rows;
 S.rawKeyword = kRes.rows;
-S.campaign = { client:'FIGS', name:'Always-on',
+S.campaign = { client:'FIGS', name:'Always-on', brandColor:'Green',
                start:'2026-07-07', end:'2026-08-20',   // deliberately past the raw data
                plCampaign:'Evergreen_PPC' };
 S.advBudget  = { currency:'USD', amount:46000 };

@@ -69,7 +69,7 @@ ctx.eval("""
   var kRes = ingest(splitCsv(KW_CSV),'keyword','k.csv');
   S = blankState();
   S.rawDaily=dRes.rows; S.rawKeyword=kRes.rows;
-  S.campaign={client:'OWALA',name:'JISOO',start:'2026-07-07',end:'2026-08-06',
+  S.campaign={client:'OWALA',name:'JISOO',brandColor:'Red',start:'2026-07-07',end:'2026-08-06',
               through:'2026-08-06',plCampaign:'Evergreen_PPC'};
   S.advBudget={currency:'USD',amount:46000};
   S.budgetBS={currency:'KRW',amount:43230000};

@@ -6,7 +6,8 @@ wb = json.loads(io.open(os.path.join(SCRATCH, "wb_dump.json"), encoding="utf-8")
 
 grid = {}   # (sheet, row, col) -> ('v'|'f', value)
 for name, s in wb["sheets"].items():
-    for r, c, kind, val, nf in s["cells"]:
+    for cell in s["cells"]:
+        r, c, kind, val = cell[0], cell[1], cell[2], cell[3]
         grid[(name, r, c)] = (kind, val)
 
 

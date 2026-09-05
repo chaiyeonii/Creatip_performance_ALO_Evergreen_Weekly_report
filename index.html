@@ -106,9 +106,10 @@
   <div class="card">
     <h2><span class="n">2</span> 캠페인 정보</h2>
     <p class="hint">Client와 Campaign Name은 모든 시트의 제목과 Sheet 1 정보표에 그대로 쓰입니다.</p>
-    <div class="grid g2">
+    <div class="grid g3">
       <div><label>Client <span style="color:var(--err)">*</span></label>
         <input type="text" id="cClient" placeholder="예: ALO / FIGS / OWALA"></div>
+      <div><label>Brand Color</label><select id="cBrandColor"></select></div>
       <div><label>Campaign Name <span style="color:var(--err)">*</span></label>
         <input type="text" id="cName" placeholder="예: Evergreen / JISOO / Always-on"></div>
     </div>
@@ -569,7 +570,7 @@ Branded,알로웰니스클럽,ALO wellness club`;
 /* ---------- state ---------- */
 function blankState(){
   return {
-    campaign : { client:'', name:'', start:'', end:'', plCampaign:'' },
+    campaign : { client:'', name:'', brandColor:'Navy', start:'', end:'', plCampaign:'' },
     advBudget : { currency:'USD', amount:null },      // whole-campaign advertising budget
     budgetBS  : { currency:'KRW', amount:null },      // Brand Search budget
     budgetPL  : { currency:'KRW', amount:null },       // Powerlink budget
@@ -958,10 +959,99 @@ function buildModel(){
 const C0 = 2;   // first content column (B)
 const R0 = 2;   // first content row    (2)
 
-const NAVY='FF1F3864', BAND='FFD9E2F3', SUBTOT='FFF2F2F2', TOTROW='FFDCE3F0';
-const BLK  = { total:'FF1F3864', pc:'FF2E5395', mo:'FF4472C4' };
-const BLK2 = { total:'FF35548C', pc:'FF4A6FAE', mo:'FF6A8FD4' };
-const GROUP_FILL = { Branded:'FFDDEBF7', Shoes:'FFE2EFDA', Competitors:'FFFCE4D6', Generic:'FFFFF2CC' };
+/* ---------- brand colour system -------------------------------------------
+   The user picks one Main key colour; every other tone is derived from it so
+   the workbook stays coherent whatever brand it is built for. Borders stay a
+   light neutral grey and are never tinted. */
+const BRAND_COLORS = [
+  ['Black',   '#1A1A1A'], ['Navy',   '#1F3864'], ['Blue',   '#2E5395'],
+  ['Sky Blue','#3E8FD0'], ['Green',  '#2E7D4F'], ['Mint',   '#2FA89B'],
+  ['Yellow',  '#E0A81E'], ['Orange', '#DD7A26'], ['Red',    '#C0392B'],
+  ['Pink',    '#D25A80'], ['Purple', '#6B4C9A'], ['Gray',   '#5A6472']
+];
+const brandHex = () => (BRAND_COLORS.find(c=>c[0]===S.campaign.brandColor)||BRAND_COLORS[1])[1];
+
+function hex2rgb(h){
+  h=h.replace('#','');
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+function rgb2hex(r,g,b){
+  const p=n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0');
+  return '#'+p(r)+p(g)+p(b);
+}
+function rgb2hsl(r,g,b){
+  r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+  let h=0; const l=(mx+mn)/2;
+  const s=d===0?0:d/(1-Math.abs(2*l-1));
+  if(d!==0){
+    if(mx===r)      h=((g-b)/d)%6;
+    else if(mx===g) h=(b-r)/d+2;
+    else            h=(r-g)/d+4;
+    h*=60; if(h<0) h+=360;
+  }
+  return [h,s,l];
+}
+function hsl2rgb(h,s,l){
+  const c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2;
+  let r=0,g=0,b=0;
+  if(h<60){r=c;g=x;} else if(h<120){r=x;g=c;} else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;} else if(h<300){r=x;b=c;} else {r=c;b=x;}
+  return [(r+m)*255,(g+m)*255,(b+m)*255];
+}
+/* absolute lightness target + saturation multiplier, derived from the brand hue */
+function tone(hex, lightness, satMul){
+  const [h,s] = rgb2hsl(...hex2rgb(hex));
+  return rgb2hex(...hsl2rgb(h, Math.max(0,Math.min(1,s*satMul)), Math.max(0,Math.min(1,lightness))));
+}
+/* WCAG relative luminance, then pick the text colour with the better contrast */
+const INK='#1A1A1A';
+function relLum(hex){
+  const [r,g,b]=hex2rgb(hex).map(v=>{ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return 0.2126*r+0.7152*g+0.0722*b;
+}
+function contrastRatio(a,b){
+  const la=relLum(a), lb=relLum(b);
+  return (Math.max(la,lb)+0.05)/(Math.min(la,lb)+0.05);
+}
+function textOn(hex){
+  return contrastRatio(hex,'#FFFFFF') >= contrastRatio(hex,INK) ? '#FFFFFF' : INK;
+}
+/* derived tints must never land in the mid band where neither text colour reads;
+   they are meant to be lighter than the brand, so nudge lightness up until they do */
+function safeTone(hex,l,satMul){
+  let out=tone(hex,l,satMul);
+  for(let i=0;i<32 && contrastRatio(out,textOn(out))<4.5;i++){
+    l=Math.min(0.97,l+0.02);
+    out=tone(hex,l,satMul);
+  }
+  return out;
+}
+const A = hex => 'FF'+hex.replace('#','').toUpperCase();
+
+let THEME=null;
+function applyTheme(){
+  const main = brandHex();
+  const [,, L] = rgb2hsl(...hex2rgb(main));
+  const step = (dl,satMul,cap) => safeTone(main, Math.min(cap, L+dl), satMul);
+  const pc  = step(0.12,0.92,0.72), mo  = step(0.22,0.80,0.80);
+  const mainSub = step(0.16,0.70,0.78), pcSub = step(0.28,0.62,0.84), moSub = step(0.36,0.52,0.88);
+  const band  = safeTone(main,0.92,0.32);
+  const total = safeTone(main,0.88,0.26);
+  THEME = {
+    main, pc, mo, mainSub, pcSub, moSub, band, total,
+    group: [0.935,0.905,0.875,0.845].map(l=>safeTone(main,l,0.30)),
+    line:    'FFD9DDE4',   // light grey, used for every ordinary border
+    lineMed: 'FFAEB6C2'    // slightly firmer grey for section / total emphasis
+  };
+}
+const TXC={};
+function txOf(argbFill){
+  if(!TXC[argbFill]) TXC[argbFill]=A(textOn('#'+argbFill.slice(2)));
+  return TXC[argbFill];
+}
+const fillOf = argb => ({type:'pattern',pattern:'solid',fgColor:{argb}});
+
 const NF_INT='#,##0', NF_PCT='0.00%';
 let NF_USD0='"$"#,##0', NF_USD2='"$"#,##0.00';   // rebuilt per report currency
 function applyMoneyFormats(){
@@ -969,9 +1059,9 @@ function applyMoneyFormats(){
   NF_USD0 = s ? `"${s}"#,##0`    : `#,##0" ${c}"`;
   NF_USD2 = s ? `"${s}"#,##0.00` : `#,##0.00" ${c}"`;
 }
-const THIN={style:'thin',color:{argb:'FFBFC7D6'}};
-const MED ={style:'medium',color:{argb:'FF1F3864'}};
-const BOX={top:THIN,left:THIN,bottom:THIN,right:THIN};
+const THIN=()=>({style:'thin',color:{argb:THEME.line}});
+const MED =()=>({style:'medium',color:{argb:THEME.lineMed}});
+const BOX=()=>({top:THIN(),left:THIN(),bottom:THIN(),right:THIN()});
 const CENTER={horizontal:'center',vertical:'middle'};
 
 function colL(n){ let s=''; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
@@ -1027,28 +1117,29 @@ function applyW(ws,W,min,max){
 function styleHeader(ws,row,c1,c2,fill){
   for(let c=c1;c<=c2;c++){
     const cell = ws.getCell(row,c);
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill}};
-    cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10.5};
+    cell.fill=fillOf(fill);
+    cell.font={bold:true,color:{argb:txOf(fill)},size:10.5};
     cell.alignment=CENTER;
-    cell.border=BOX;
+    cell.border=BOX();
   }
 }
 function titleBand(ws,row,c1,c2,text,fill,color,size){
   ws.mergeCells(row,c1,row,c2);
   const cell=ws.getCell(row,c1);
+  const bg = fill || A(THEME.band);
   cell.value=text;
-  cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill||BAND}};
-  cell.font={bold:true,size:size||11,color:{argb:color||'FF1F3864'}};
+  cell.fill=fillOf(bg);
+  cell.font={bold:true,size:size||11,color:{argb:color||txOf(bg)}};
   cell.alignment={horizontal:'left',vertical:'middle',indent:1};
-  cell.border=BOX;
+  cell.border=BOX();
   ws.getRow(row).height=size?24:20;
 }
 
 function blockBorder(c,extra){
-  const b={top:THIN,left:THIN,bottom:THIN,right:THIN};
+  const b={top:THIN(),left:THIN(),bottom:THIN(),right:THIN()};
   const rel=c-C0;
-  if(rel===0||rel===1||rel===5||rel===9)  b.left=MED;
-  if(rel===0||rel===4||rel===8||rel===12) b.right=MED;
+  if(rel===0||rel===1||rel===5||rel===9)  b.left=MED();
+  if(rel===0||rel===4||rel===8||rel===12) b.right=MED();
   return extra?Object.assign(b,extra):b;
 }
 
@@ -1067,14 +1158,15 @@ function dailyBlock(ws, startRow, label, rows, W){
     for(const b of blocks){ ws.getCell(r2,b[1]+i).value=h; noteW(W,b[1]+i,h); }
   });
   for(const row of [r1,r2]){
-    const pal = row===r1?BLK:BLK2;
-    ws.getCell(row,cD).fill={type:'pattern',pattern:'solid',fgColor:{argb:BLK.total}};
+    const pal = row===r1 ? {total:A(THEME.main),pc:A(THEME.pc),mo:A(THEME.mo)}
+                         : {total:A(THEME.mainSub),pc:A(THEME.pcSub),mo:A(THEME.moSub)};
+    ws.getCell(row,cD).fill=fillOf(pal.total);
     for(const b of blocks)
       for(let i=0;i<4;i++)
-        ws.getCell(row,b[1]+i).fill={type:'pattern',pattern:'solid',fgColor:{argb:pal[b[2]]}};
+        ws.getCell(row,b[1]+i).fill=fillOf(pal[b[2]]);
     for(let c=cD;c<=cEnd;c++){
       const cell=ws.getCell(row,c);
-      cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10.5};
+      cell.font={bold:true,color:{argb:txOf(cell.fill.fgColor.argb)},size:10.5};
       cell.alignment=CENTER;
       cell.border=blockBorder(c);
     }
@@ -1130,9 +1222,9 @@ function dailyBlock(ws, startRow, label, rows, W){
         cell.numFmt = off===0 ? NF_USD2 : (off===3 ? NF_PCT : NF_INT);
       }
       if(rr===tr){
-        cell.font={bold:true};
-        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOTROW}};
-        cell.border=blockBorder(c,{bottom:MED});
+        cell.fill=fillOf(A(THEME.total));
+        cell.font={bold:true,color:{argb:txOf(A(THEME.total))}};
+        cell.border=blockBorder(c,{bottom:MED()});
       }
     }
     ws.getCell(rr,cD).alignment=CENTER;
@@ -1144,7 +1236,7 @@ function dailyBlock(ws, startRow, label, rows, W){
 function overviewBlock(ws,startRow,mediaName,adName,budgets,dailyTotalRow,W){
   const hdr=['Media','Ad','Device','Budget','Spent','Impression','Click','CTR','CPC','CPM'];
   hdr.forEach((h,i)=>{ ws.getCell(startRow,C0+i).value=h; noteW(W,C0+i,h); });
-  styleHeader(ws,startRow,C0,C0+9,NAVY);
+  styleHeader(ws,startRow,C0,C0+9,A(THEME.main));
 
   const rPC=startRow+1, rMO=startRow+2, rSub=startRow+3;
   ws.mergeCells(rPC,C0,rSub,C0);   ws.getCell(rPC,C0).value=mediaName;
@@ -1179,16 +1271,16 @@ function overviewBlock(ws,startRow,mediaName,adName,budgets,dailyTotalRow,W){
     ws.getCell(r,C0+9).value={formula:`IFERROR(${L(C0+4)}${r}/${L(C0+5)}${r}*1000,0)`};
     for(let i=0;i<10;i++){
       const cell=ws.getCell(r,C0+i);
-      cell.border=BOX;
+      cell.border=BOX();
       if(i===3||i===4) cell.numFmt=NF_USD2;
       if(i===5||i===6) cell.numFmt=NF_INT;
       if(i===7) cell.numFmt=NF_PCT;
       if(i===8||i===9) cell.numFmt=NF_USD2;
       if(i<=2) cell.alignment=CENTER;
       if(r===rSub){
-        cell.font={bold:true};
-        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOTROW}};
-        cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
+        cell.fill=fillOf(A(THEME.total));
+        cell.font={bold:true,color:{argb:txOf(A(THEME.total))}};
+        cell.border={top:MED(),left:THIN(),bottom:THIN(),right:THIN()};
       }
     }
     ws.getRow(r).height=18;
@@ -1203,7 +1295,7 @@ function overviewBlock(ws,startRow,mediaName,adName,budgets,dailyTotalRow,W){
    columns: Keyword (EN) | Keyword (KO) | Cost | Imp | Click | CTR | CPC
    The TOTAL row sits directly under the column header, above the keywords. */
 const KW_PC=0, KW_SPACER=7, KW_MO=8, KW_W=7;
-const KW_COLS=['Keyword (EN)','Keyword (KO)','Cost','Imp','Click','CTR','CPC'];
+const KW_COLS=['Keyword (EN)','Keyword (KO)','Spent','Imp','Click','CTR','CPC'];
 const KW_SIDES=[KW_PC,KW_MO];
 
 function kwCols(){
@@ -1222,7 +1314,7 @@ function kwDeviceBand(ws,row,label,W){
   KW_SIDES.forEach((b,k)=>{
     ws.mergeCells(row,C0+b,row,C0+b+KW_W-1);
     ws.getCell(row,C0+b).value=names[k];
-    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?BLK.pc:BLK.mo);
+    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?A(THEME.pc):A(THEME.mo));
   });
   ws.getRow(row).height=18;
   return row+1;
@@ -1231,7 +1323,7 @@ function kwDeviceBand(ws,row,label,W){
 function kwColumnHeader(ws,row,W){
   KW_SIDES.forEach((b,k)=>{
     KW_COLS.forEach((h,i)=>{ ws.getCell(row,C0+b+i).value=h; noteW(W,C0+b+i,h); });
-    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?BLK2.pc:BLK2.mo);
+    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?A(THEME.pcSub):A(THEME.moSub));
   });
   ws.getRow(row).height=17;
   return row+1;
@@ -1250,10 +1342,11 @@ function kwTotalRow(ws,row,label,counts,firstDataRow,dark,W){
       ws.getCell(row,C0+b+6).value={formula:`IFERROR(${L(C0+b+2)}${row}/${L(C0+b+4)}${row},0)`};
     }
     for(let i=0;i<KW_W;i++){
+      const bg = dark ? A(THEME.main) : A(THEME.total);
       const cell=ws.getCell(row,C0+b+i);
-      cell.font={bold:true,color:{argb:dark?'FFFFFFFF':'FF1F3864'}};
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:dark?NAVY:TOTROW}};
-      cell.border={top:THIN,left:THIN,bottom:MED,right:THIN};
+      cell.fill=fillOf(bg);
+      cell.font={bold:true,color:{argb:txOf(bg)}};
+      cell.border={top:THIN(),left:THIN(),bottom:MED(),right:THIN()};
       kwFmt(cell,i);
     }
   });
@@ -1280,7 +1373,7 @@ function kwDataRows(ws,startRow,pcList,moList,W){
       }
       for(let i2=0;i2<KW_W;i2++){
         const cell=ws.getCell(r,C0+b+i2);
-        cell.border=BOX; kwFmt(cell,i2);
+        cell.border=BOX(); kwFmt(cell,i2);
       }
     });
   }
@@ -1291,6 +1384,7 @@ async function buildWorkbook(M){
   const wb = new ExcelJS.Workbook();
   wb.creator='Weekly Report Generator';
   wb.created=new Date();
+  applyTheme();
   applyMoneyFormats();
 
   const T = reportTitles();
@@ -1299,16 +1393,19 @@ async function buildWorkbook(M){
   const wsBSK     = wb.addWorksheet('Brand Search Keywords');
   const wsPL      = wb.addWorksheet('Powerlink');
   const wsPLK     = wb.addWorksheet('Powerlink Keywords');
+  for(const ws of [wsOverall,wsBS,wsBSK,wsPL,wsPLK]) ws.views=[{showGridLines:false}];
   const cEnd13 = C0+12, cEnd10 = C0+9, cEnd11 = C0+10;
 
   /* 2 title | 3 blank | 4 band | 5 blank | 6 hdr | 7 PC | 8 MO | 9 Subtotal
      10 blank | 11 band | 12 blank | 13-14 daily hdr | 15 TOTAL | 16.. dates */
-  const OV_BAND=R0+2, OV_HDR=R0+4, DB_BAND=R0+9, DB_START=R0+11;
+  /* 2 title | 3 blank | 4 band | 5 hdr | 6 PC | 7 MO | 8 Subtotal
+     9 blank | 10 band | 11-12 daily hdr | 13 TOTAL | 14.. dates */
+  const OV_BAND=R0+2, OV_HDR=R0+3, DB_BAND=R0+8, DB_START=R0+9;
 
   /* ================= Sheet 2: Brand Search ================= */
   {
     const W={};
-    titleBand(wsBS,R0,C0,cEnd13,T.bs,NAVY,'FFFFFFFF',13);
+    titleBand(wsBS,R0,C0,cEnd13,T.bs,A(THEME.main),undefined,13);
     titleBand(wsBS,OV_BAND,C0,cEnd10,'Overview');
     const blk = dailyBlock(wsBS,DB_START,'Brand Search',M.bsDaily,W);
     titleBand(wsBS,DB_BAND,C0,cEnd13,'Daily Breakdown');
@@ -1320,7 +1417,7 @@ async function buildWorkbook(M){
   /* ================= Sheet 3: Brand Search Keywords ================= */
   {
     const W={};
-    titleBand(wsBSK,R0,C0,C0+14,T.bsk,NAVY,'FFFFFFFF',13);
+    titleBand(wsBSK,R0,C0,C0+14,T.bsk,A(THEME.main),undefined,13);
     titleBand(wsBSK,R0+2,C0,C0+14,'Keyword Breakdown by Device  ·  '+fmtPeriod());
     let r = kwDeviceBand(wsBSK,R0+4,'Brand Search',W);   // 6
     r = kwColumnHeader(wsBSK,r,W);                       // 7
@@ -1337,7 +1434,7 @@ async function buildWorkbook(M){
   /* ================= Sheet 4: Powerlink ================= */
   {
     const W={};
-    titleBand(wsPL,R0,C0,cEnd13,T.pl,NAVY,'FFFFFFFF',13);
+    titleBand(wsPL,R0,C0,cEnd13,T.pl,A(THEME.main),undefined,13);
     titleBand(wsPL,OV_BAND,C0,cEnd10,'Overview');
     const blk = dailyBlock(wsPL,DB_START,'Powerlink',M.plDaily,W);
     titleBand(wsPL,DB_BAND,C0,cEnd13,'Daily Breakdown');
@@ -1349,8 +1446,8 @@ async function buildWorkbook(M){
     pr += 2;
     const groupTotalRows=[];
     for(const g of GROUPS){
-      titleBand(wsPL,pr,C0,cEnd13,g,GROUP_FILL[g]);
-      pr += 2;
+      titleBand(wsPL,pr,C0,cEnd13,g,A(THEME.group[GROUPS.indexOf(g)]));
+      pr += 1;
       const gb = dailyBlock(wsPL,pr,g,M.plGroup[g]||[],W);
       if((M.plGroup[g]||[]).some(d=>d.PC||d.MO)) groupTotalRows.push(gb.totalRow);
       pr = gb.nextRow+1;
@@ -1362,13 +1459,13 @@ async function buildWorkbook(M){
   /* ================= Sheet 5: Powerlink Keywords ================= */
   {
     const W={};
-    titleBand(wsPLK,R0,C0,C0+14,T.plk,NAVY,'FFFFFFFF',13);
+    titleBand(wsPLK,R0,C0,C0+14,T.plk,A(THEME.main),undefined,13);
     titleBand(wsPLK,R0+2,C0,C0+14,'Keyword Breakdown by Ad Group & Device  ·  '+fmtPeriod());
     let r = kwDeviceBand(wsPLK,R0+4,'Powerlink',W);      // 6
     r += 1;                                              // 7 blank under the device band
     for(const g of GROUPS){
       // Ad Group band -> column header -> TOTAL -> keywords -> blank row
-      for(const b of KW_SIDES) titleBand(wsPLK,r,C0+b,C0+b+KW_W-1,g,GROUP_FILL[g]);
+      for(const b of KW_SIDES) titleBand(wsPLK,r,C0+b,C0+b+KW_W-1,g,A(THEME.group[GROUPS.indexOf(g)]));
       r += 1;
       r = kwColumnHeader(wsPLK,r,W);
       const pc = M.plKeywords.filter(k=>k.group===g && k.device==='PC');
@@ -1378,7 +1475,7 @@ async function buildWorkbook(M){
           wsPLK.mergeCells(r,C0+b,r,C0+b+KW_W-1);
           wsPLK.getCell(r,C0+b).value='No data';
           wsPLK.getCell(r,C0+b).alignment=CENTER;
-          wsPLK.getCell(r,C0+b).border=BOX;
+          wsPLK.getCell(r,C0+b).border=BOX();
         }
         r += 2; continue;
       }
@@ -1395,10 +1492,10 @@ async function buildWorkbook(M){
   /* ================= Sheet 1: Overall ================= */
   {
     const W={};
-    titleBand(wsOverall,R0,C0,cEnd11,T.overall,NAVY,'FFFFFFFF',13);
+    titleBand(wsOverall,R0,C0,cEnd11,T.overall,A(THEME.main),undefined,13);
 
     const INFO0 = R0+2;
-    const MSH   = INFO0+10;
+    const MSH   = INFO0+9;     // band at MSH-1, table header immediately below
     const MS_BS = MSH+1, MS_PL = MSH+2, MS_TOT = MSH+3;
     const vSpent = `${L(C0+1)}${INFO0+3}`;
 
@@ -1419,10 +1516,10 @@ async function buildWorkbook(M){
     });
     noteNum(W,C0+1,M.budgetTotal,'m0');
 
-    titleBand(wsOverall,MSH-2,C0,cEnd11,'Media Summary');
+    titleBand(wsOverall,MSH-1,C0,cEnd11,'Media Summary');   // table header sits right below
     ['Campaign','Period','Media','Ad','Budget','Spent','Impression','Click','CTR','CPC','CPM']
       .forEach((h,i)=>{ wsOverall.getCell(MSH,C0+i).value=h; noteW(W,C0+i,h); });
-    styleHeader(wsOverall,MSH,C0,cEnd11,NAVY);
+    styleHeader(wsOverall,MSH,C0,cEnd11,A(THEME.main));
 
     const camp=(S.campaign.name||'').trim();
     wsOverall.mergeCells(MS_BS,C0,MS_PL,C0);     wsOverall.getCell(MS_BS,C0).value=camp;
@@ -1451,16 +1548,16 @@ async function buildWorkbook(M){
     for(let r=MS_BS;r<=MS_TOT;r++){
       for(let i=0;i<=10;i++){
         const c=C0+i, cell=wsOverall.getCell(r,c);
-        cell.border=BOX;
+        cell.border=BOX();
         if(i===4||i===5)  cell.numFmt=NF_USD0;
         if(i===6||i===7)  cell.numFmt=NF_INT;
         if(i===8)         cell.numFmt=NF_PCT;
         if(i===9||i===10) cell.numFmt=NF_USD2;
         if(i<=3) cell.alignment=CENTER;
         if(r===MS_TOT){
-          cell.font={bold:true,color:{argb:'FFFFFFFF'}};
-          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
-          cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
+          cell.fill=fillOf(A(THEME.main));
+          cell.font={bold:true,color:{argb:txOf(A(THEME.main))}};
+          cell.border={top:MED(),left:THIN(),bottom:THIN(),right:THIN()};
         }
       }
       wsOverall.getRow(r).height=18;
@@ -1478,13 +1575,14 @@ async function buildWorkbook(M){
 function ws_infoRow(ws,r,label,value,fmt){
   ws.getCell(r,C0).value=label;
   ws.getCell(r,C0).font={bold:true,size:10.5};
-  ws.getCell(r,C0).fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+  ws.getCell(r,C0).fill=fillOf(A(THEME.band));
+  ws.getCell(r,C0).font={bold:true,size:10.5,color:{argb:txOf(A(THEME.band))}};
   ws.mergeCells(r,C0+1,r,C0+3);
   ws.getCell(r,C0+1).value=value;
   if(fmt) ws.getCell(r,C0+1).numFmt=fmt;
   for(let c=C0;c<=C0+3;c++){
     const cell=ws.getCell(r,c);
-    cell.border=BOX;
+    cell.border=BOX();
     cell.alignment=CENTER;
   }
   ws.getRow(r).height=19;
@@ -1501,7 +1599,7 @@ function ws_check(ws,row,groupRows,allRow){
   for(let i=0;i<4;i++){
     const cell=ws.getCell(row,C0+i);
     cell.font={bold:true,italic:true,size:10};
-    cell.border=BOX;
+    cell.border=BOX();
     cell.alignment={horizontal:i===0?'left':'center'};
   }
 }
@@ -1536,6 +1634,8 @@ function budgetCurrencyOptions(sel){
 function renderCampaignInfo(){
   $('cClient').value=S.campaign.client||'';
   $('cName').value=S.campaign.name||'';
+  $('cBrandColor').innerHTML=BRAND_COLORS.map(c=>
+    `<option value="${c[0]}" ${S.campaign.brandColor===c[0]?'selected':''}>${c[0]}</option>`).join('');
   $('advCur').innerHTML=budgetCurrencyOptions(S.advBudget.currency);
   if(!$('advCur').value) { S.advBudget.currency=S.fx.toCurrency; $('advCur').value=S.fx.toCurrency; }
   $('advAmt').value=S.advBudget.amount??'';
@@ -1545,6 +1645,13 @@ function renderCampaignInfo(){
   const conv=convertAmount(amt,S.advBudget.currency);
   const fee=num(S.agencyFeeRate);
   let h='';
+  applyTheme();
+  h+=`<div class="msg ok">Excel Key Color <b>${esc(S.campaign.brandColor)}</b> `+
+     `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;`+
+     `vertical-align:-2px;background:${THEME.main};border:1px solid rgba(0,0,0,.15)"></span> `+
+     `→ Secondary <span style="display:inline-block;width:14px;height:14px;border-radius:3px;`+
+     `vertical-align:-2px;background:${THEME.band};border:1px solid rgba(0,0,0,.15)"></span> `+
+     `(자동 생성). 제목·섹션·표 헤더에만 제한적으로 사용됩니다.</div>`;
   if(amt){
     h+=`<div class="msg ok">Advertising Budget <b>${fmtMoney(conv)}</b>`;
     if(S.advBudget.currency!==rc) h+=` <span style="opacity:.7">(${groupNum(amt)} ${S.advBudget.currency} → ${rc})</span>`;
@@ -1837,6 +1944,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   /* 2. 캠페인 정보 */
   bindText('cClient',v=>S.campaign.client=v);
   bindText('cName',v=>S.campaign.name=v);
+  on('cBrandColor','change',()=>{ S.campaign.brandColor=$('cBrandColor').value;
+                                  save(); renderCampaignInfo(); });
   bindNum('advAmt',v=>S.advBudget.amount=v);
   bindNum('agencyRate',v=>S.agencyFeeRate=v);
   on('advCur','change',()=>{ S.advBudget.currency=$('advCur').value; save(); renderCampaignInfo(); renderSetup(); refreshValidation(); });

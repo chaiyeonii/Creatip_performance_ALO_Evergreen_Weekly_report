@@ -42,9 +42,9 @@ print()
 print("=" * 100)
 print("B. DAILY BREAKDOWN — full campaign period, missing vs zero")
 print("=" * 100)
-DB_HDR = 13          # 2 title,3 blank,4 band,5 blank,6 hdr,7-9 overview,10 blank,11 band,12 blank,13-14 hdr
-TOTAL_ROW = 15
-FIRST = 16
+DB_HDR = 11          # 2 title,3 blank,4 band,5 blank,6 hdr,7-9 overview,10 blank,11 band,12 blank,13-14 hdr
+TOTAL_ROW = 13
+FIRST = 14
 for sheet in ("Brand Search", "Powerlink"):
     dates = []
     r = FIRST
@@ -107,13 +107,15 @@ print("=" * 100)
 print("D. FREEZE PANES — none")
 print("=" * 100)
 for n in SHEETS:
-    check(f"{n:<24} no freeze", not wb["sheets"][n]["views"], str(wb["sheets"][n]["views"]))
+    v = wb["sheets"][n]["views"] or [{}]
+    # views now exist to switch gridlines off; what must be absent is a frozen pane
+    check(f"{n:<24} no freeze", not any(x.get("state") == "frozen" for x in v), str(v))
 
 print()
 print("=" * 100)
 print("E. OVERVIEW — Media | Ad | Device(PC/MO/Subtotal) + budgets")
 print("=" * 100)
-OV_HDR, R_PC, R_MO, R_SUB = 6, 7, 8, 9
+OV_HDR, R_PC, R_MO, R_SUB = 5, 6, 7, 8
 hdr = [disp("Brand Search", OV_HDR, c) for c in range(2, 12)]
 check("header", hdr == ['Media', 'Ad', 'Device', 'Budget', 'Spent', 'Impression', 'Click', 'CTR', 'CPC', 'CPM'],
       str(hdr))
@@ -179,11 +181,11 @@ grp_tot = sorted(r for (s_, r, c), (k, v) in grid.items()
 bs_kw_imp = disp('Brand Search Keywords', BT, KW_PC + 3) + disp('Brand Search Keywords', BT, KW_MO + 3)
 pl_kw_imp = sum(disp('Powerlink Keywords', r, b + 3) for r in grp_tot for b in (KW_PC, KW_MO))
 pairs = [
-    ("Overall BS Imp  == Sheet2 Subtotal", disp('Overall', 15, 8), disp('Brand Search', R_SUB, 7)),
-    ("Overall PL Imp  == Sheet4 Subtotal", disp('Overall', 16, 8), disp('Powerlink', R_SUB, 7)),
+    ("Overall BS Imp  == Sheet2 Subtotal", disp('Overall', 14, 8), disp('Brand Search', R_SUB, 7)),
+    ("Overall PL Imp  == Sheet4 Subtotal", disp('Overall', 15, 8), disp('Powerlink', R_SUB, 7)),
     ("Sheet2 Subtotal == Sheet3 TOTAL", disp('Brand Search', R_SUB, 7), bs_kw_imp),
     ("Sheet4 Subtotal == Sheet5 group TOTALs", disp('Powerlink', R_SUB, 7), pl_kw_imp),
-    ("Overall Total Spent == Media Summary", disp('Overall', 7, 3), disp('Overall', 17, 7)),
+    ("Overall Total Spent == Media Summary", disp('Overall', 7, 3), disp('Overall', 16, 7)),
     ("Overall Adv Budget  == input", disp('Overall', 8, 3), S["budgetTotal"]),
 ]
 for lab, a, b2 in pairs:
@@ -206,7 +208,7 @@ check("no overlapping merges", bad_merge == 0, str(bad_merge))
 
 bad, total_f = [], 0
 for n, s in wb["sheets"].items():
-    for r, c, kind, val, nf in s["cells"]:
+    for r, c, kind, val, nf in [(x[0],x[1],x[2],x[3],x[4]) for x in s["cells"]]:
         if kind != 'f':
             continue
         total_f += 1

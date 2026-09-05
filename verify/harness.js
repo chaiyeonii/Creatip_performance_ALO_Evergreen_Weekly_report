@@ -61,7 +61,10 @@ function dumpWorkbook(wb) {
       if (c.value === null && !c.numFmt) continue;
       var v = c.value, kind = 'v';
       if (v && typeof v === 'object' && v.formula !== undefined) { v = v.formula; kind = 'f'; }
-      cells.push([c.row, c.col, kind, v, c.numFmt]);
+      var fg = c.fill && c.fill.fgColor ? c.fill.fgColor.argb : null;
+      var fc = c.font && c.font.color ? c.font.color.argb : null;
+      var bd = c.border ? JSON.stringify(c.border) : null;
+      cells.push([c.row, c.col, kind, v, c.numFmt, fg, fc, bd]);
     }
     var cols={}; for(var c in ws._cols) if(ws._cols[c].width) cols[c]=ws._cols[c].width;
     out.sheets[n] = { cells: cells, merges: ws._merges, views: ws.views, cols: cols };
