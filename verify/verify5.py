@@ -96,8 +96,11 @@ for sheet in ("Brand Search", "Powerlink"):
     grp = [disp(sheet, DB_HDR, c) for c in (3, 7, 11)]
     check(f"{sheet:<13} group header", all('_Total' in grp[0] and '_PC' in grp[1] and '_MO' in grp[2] for _ in [0]),
           str(grp))
-check("no 'Cost' label anywhere",
-      not [1 for (s, r, c), (k, v) in grid.items() if v == 'Cost'])
+# "Cost" is a legitimate column on the keyword sheets; it must not appear in a
+# Daily Breakdown, where the metric is called Spent.
+check("no 'Cost' label in any Daily Breakdown",
+      not [1 for (s, r, c), (k, v) in grid.items()
+           if v == 'Cost' and s in ('Brand Search', 'Powerlink')])
 
 print()
 print("=" * 100)
@@ -156,7 +159,8 @@ for n in SHEETS:
     check(f"{n:<24} all used columns have a width", not missing, str(missing))
     check(f"{n:<24} column A narrow", cols.get(1, 99) <= 3, str(cols.get(1)))
     if n.endswith("Keywords"):
-        check(f"{n:<24} spacer col G narrow", cols.get(7, 99) <= 4, str(cols.get(7)))
+        # keyword blocks are 7 columns wide, so the spacer sits at column I
+        check(f"{n:<24} spacer col I narrow", cols.get(9, 99) <= 4, str(cols.get(9)))
     wide = {c: w for c, w in cols.items() if w > 30}
     check(f"{n:<24} no runaway column", not wide, str(wide))
 
@@ -164,17 +168,23 @@ print()
 print("=" * 100)
 print("H. CROSS-SHEET / MERGES / FORMULAS")
 print("=" * 100)
-gt = findrow('Powerlink Keywords', 2, 'GRAND TOTAL')[0]
-bt = findrow('Brand Search Keywords', 2, 'TOTAL')[0]
+# Keyword TOTAL rows now sit under each column header, not at the bottom.
+# Sheet 3 has one TOTAL (row 8); Sheet 5 has one per ad group.
+KW_PC, KW_MO = 2, 10          # first column of each device block
+BT = 8                        # Sheet 3 TOTAL row
+GROUPS4 = ["Branded", "Shoes", "Competitors", "Generic"]
+grp_tot = sorted(r for (s_, r, c), (k, v) in grid.items()
+                 if s_ == 'Powerlink Keywords' and c == KW_PC and k == 'v'
+                 and isinstance(v, str) and v.endswith(' TOTAL'))
+bs_kw_imp = disp('Brand Search Keywords', BT, KW_PC + 3) + disp('Brand Search Keywords', BT, KW_MO + 3)
+pl_kw_imp = sum(disp('Powerlink Keywords', r, b + 3) for r in grp_tot for b in (KW_PC, KW_MO))
 pairs = [
     ("Overall BS Imp  == Sheet2 Subtotal", disp('Overall', 15, 8), disp('Brand Search', R_SUB, 7)),
     ("Overall PL Imp  == Sheet4 Subtotal", disp('Overall', 16, 8), disp('Powerlink', R_SUB, 7)),
-    ("Sheet2 Subtotal == Sheet3 TOTAL", disp('Brand Search', R_SUB, 7),
-     disp('Brand Search Keywords', bt, 4) + disp('Brand Search Keywords', bt, 10)),
-    ("Sheet4 Subtotal == Sheet5 GRAND TOTAL", disp('Powerlink', R_SUB, 7),
-     disp('Powerlink Keywords', gt, 4) + disp('Powerlink Keywords', gt, 10)),
+    ("Sheet2 Subtotal == Sheet3 TOTAL", disp('Brand Search', R_SUB, 7), bs_kw_imp),
+    ("Sheet4 Subtotal == Sheet5 group TOTALs", disp('Powerlink', R_SUB, 7), pl_kw_imp),
     ("Overall Total Spent == Media Summary", disp('Overall', 7, 3), disp('Overall', 17, 7)),
-    ("Overall Adv Budget  == input",          disp('Overall', 8, 3), S["budgetTotal"]),
+    ("Overall Adv Budget  == input", disp('Overall', 8, 3), S["budgetTotal"]),
 ]
 for lab, a, b2 in pairs:
     check(lab, abs(a - b2) < 0.01, f"{a:,.0f} vs {b2:,.0f}")

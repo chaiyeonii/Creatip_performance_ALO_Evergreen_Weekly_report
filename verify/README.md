@@ -19,7 +19,8 @@ cd verify
 
 python expected.py       # 1. 정답지 — Python 독립 구현으로 기대 수치를 먼저 계산
 python run_js.py         # 2. index.html의 JS를 V8에서 실행 → wb_dump.json / summary.json 생성
-python verify5.py        # 3. 주 검증기 — 결측 vs 0, 전 기간 날짜, 지표 순서, Overview PC/MO/Subtotal,
+python verify6.py        # 3. 주 검증기 — Keyword 시트 7컬럼/TOTAL 상단/그룹 블록/Cost·CPC
+python verify5.py        # 4. 직전 라운드 회귀 — 결측 vs 0, 전 기간 날짜, 지표 순서, Overview PC/MO/Subtotal,
                          #    틀 고정 없음, 열 너비, 교차합계, 수식 전량
 python verify2.py        # (구버전 레이아웃용 리포트 — 참고용)
 python smoke.py          # 4. 환율 방향(From/To)·통화 서식·UI 패널 렌더 스모크 테스트
@@ -36,7 +37,8 @@ Windows에서 한글 출력이 깨지면 `PYTHONIOENCODING=utf-8`을 앞에 붙�
 | `harness.js` | `window`·`document`·`localStorage`·`Blob` 스텁 + ExcelJS를 **호출 기록기**로 대체 |
 | `run_js.py` | HTML에서 인라인 `<script>` 추출 → 스텁 위에서 실행 → 워크북 셀 전체를 JSON으로 덤프 |
 | `eval_wb.py` | Excel 수식 평가기 (`SUM`/`IFERROR`/`IF`/`ROUND`, 시트 간 참조, 범위). `verify2.py`가 재사용 |
-| `verify5.py` | **주 검증기** — Data Through 제거, 캠페인 전 기간 날짜, 결측일 빈 셀, 지표 순서, Overview 디바이스 분할, 틀 고정 없음, 열 너비 |
+| `verify6.py` | **주 검증기** — Keyword 시트 컬럼 구성, TOTAL 상단 배치, Ad Group 블록 순서, Cost/CPC 산출, 정렬 |
+| `verify5.py` | 회귀 — Data Through 제거, 캠페인 전 기간 날짜, 결측일 빈 셀, 지표 순서, Overview 디바이스 분할, 틀 고정 없음, 열 너비 |
 | `verify4.py` | 이전 라운드 — A열·1행 공백, 헤더 뒤 공백 행, B2 제목 규칙, Sheet 1 레이아웃·값(Agency Fee·Budget·환율), 교차합계, 수식 전량 |
 | `verify3.py` | 이전 라운드 검증기 (참고용) |
 | `verify2.py` | 시트별 값 덤프 (구버전 레이아웃 기준, 참고용) |

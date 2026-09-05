@@ -45,7 +45,7 @@ S.campaign = { client:'FIGS', name:'Always-on',
                plCampaign:'Evergreen_PPC' };
 S.advBudget  = { currency:'USD', amount:46000 };
 S.budgetBS   = { currency:'KRW', amount:43230000 };
-S.budgetPL   = 21169400;
+S.budgetPL   = { currency:'KRW', amount:21169400 };
 S.bsFixedFee = { pc:5280000, mo:37950000 };
 S.agencyFeeRate = 8;
 S.fx = { fromCountry:'KR', fromCurrency:'KRW', toCountry:'US', toCurrency:'USD', rate:1400 };

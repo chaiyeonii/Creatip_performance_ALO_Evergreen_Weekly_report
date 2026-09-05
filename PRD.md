@@ -39,7 +39,7 @@
 | U7 | **Brand Search Budget** | Currency 드롭다운 + 금액 | Sheet 1 Media Summary와 Sheet 2 Overview의 Budget |
 | U8 | **Brand Search 정액료 · PC** | Raw Data 통화 (number) | 정액제 상품의 PC 금액. 통화 드롭다운 없이 Raw Data 통화 고정. **Overview의 PC Budget으로도 쓰인다** |
 | U9 | **Brand Search 정액료 · MO** | Raw Data 통화 (number) | 〃 Mobile |
-| U10 | **Powerlink Budget** | Raw Data 통화 (number) | 통화 드롭다운 없이 Raw Data 통화 고정. Sheet 1 Media Summary와 Sheet 4 Overview의 Budget |
+| U10 | **Powerlink Budget** | Currency 드롭다운 + 금액 | Brand Search Budget과 동일한 입력 방식. Sheet 1 Media Summary와 Sheet 4 Overview의 Budget |
 | U11 | **Powerlink Campaign** | dropdown | 업로드된 Raw Data의 실제 캠페인 값에서 **자동 생성**. 선택한 캠페인의 데이터만 Powerlink 리포트에 포함 |
 
 ### 단계 4 — 환율
@@ -60,7 +60,8 @@
 **입력 규칙**
 - 환율은 **절대 자동 검색·추정하지 않는다.** 사용자가 직접 입력한다.
 - Budget 통화 드롭다운은 **From / To 통화만** 제공한다. 단일 환율로 변환 가능한 조합만 허용하기 위함이다.
-- 정액료와 Powerlink Budget은 Raw Data 통화(From)로 고정되며, 라벨에 통화 코드가 표시된다.
+- Brand Search 정액료(PC/MO)만 Raw Data 통화(From)로 고정되며, 라벨에 통화 코드가 표시된다.
+- Advertising Budget · Brand Search Budget · Powerlink Budget은 모두 `[Currency 드롭다운] [금액]` 형태로 통일한다.
 - 필수 항목이 하나라도 비면 **생성 버튼이 비활성화**되고 어떤 값이 비었는지 표시된다.
 - Client / Campaign Name을 입력하면 생성될 **5개 시트 제목이 실시간 미리보기**로 표시된다.
 
@@ -379,21 +380,42 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 
 ### Sheet 3 — Brand Search Keywords
 
-2단 헤더. **PC 블록과 MO 블록 사이에 Spacer 열 1개를 둔다.**
+**컬럼 구성** — PC와 MO 각각 **7개 데이터 열**, 가운데 Spacer 열 1개.
 
-| B~F: Brand Search_PC | G | H~L: Brand Search_MO |
+| B~H: Brand Search_PC | I | J~P: Brand Search_MO |
 |---|---|---|
-| Keyword (EN) · Keyword (KO) · Imp · Click · CTR | (빈 열) | Keyword (EN) · Keyword (KO) · Imp · Click · CTR |
+| Keyword (EN) · Keyword (KO) · Cost · Imp · Click · CTR · CPC | (빈 열) | Keyword (EN) · Keyword (KO) · Cost · Imp · Click · CTR · CPC |
 
-- **Spacer 열(G)**: 데이터·테두리·배경 전부 없음. 열 너비 3. 오직 시각적 분리 용도
-  (예외: 2행 제목 밴드와 4행 부제 밴드만 전체 폭을 병합한다 — 제목 병합 허용 규칙)
-- PC 헤더는 B:F 병합, MO 헤더는 H:L 병합 → **두 개의 독립된 표처럼 인식**되게 구성
-- PC 블록(35행)과 MO 블록(58행)은 **완전히 독립 집계**. 행 수가 다르면 짧은 쪽은 공백
-- 각 블록 내 **Impression DESC** 정렬
-- CTR = `=IFERROR(Click/Imp,0)` 수식
-- 하단에 TOTAL 행 (PC·MO 각각)
+- **Spacer 열(I)**: 데이터·테두리·배경 전부 없음. 너비 2.2
+- PC 헤더는 `B:H` 병합, MO 헤더는 `J:P` 병합 → 두 개의 독립된 표로 인식
 
----
+**행 구성** — TOTAL이 키워드 목록 **위**에 온다.
+
+| 행 | 내용 |
+|---|---|
+| 6 | Device Group Header (`Brand Search_PC` / `Brand Search_MO`) |
+| 7 | Column Header |
+| 8 | **TOTAL Row** |
+| 9~ | 키워드 데이터 (Impression DESC) |
+
+- TOTAL 행은 표 마지막에 두지 않는다. PC·MO 모두 동일하다.
+- PC와 MO는 완전히 독립 집계·정렬. 행 수가 다르면 짧은 쪽은 빈 셀로 남기고 억지로 맞추지 않는다.
+
+**TOTAL 계산** — Reporting Period 전체, 해당 Device 기준.
+
+```
+Cost  = SUM(Keyword Cost)
+Imp   = SUM(Keyword Impression)
+Click = SUM(Keyword Click)
+CTR   = Total Click / Total Impression
+CPC   = Total Cost  / Total Click
+```
+
+키워드별 비율의 평균은 사용하지 않는다. 분모가 0이면 `IFERROR(...,0)`으로 0 처리.
+
+**Cost / CPC** — 리포트 통화 기준. 캠페인 단일 환율로 변환하며 통화 서식은 워크북 전체와 동일하다.
+
+> **Brand Search의 키워드 Cost** — 브랜드검색은 정액제라 Raw Data의 키워드별 총비용이 전 행 0원이다. 그래서 **각 디바이스의 정액료를 그 디바이스 키워드의 노출 비중으로 배분**한다. 그 결과 Sheet 3의 TOTAL Cost가 Sheet 2 Overview의 Subtotal Spent와 정확히 일치한다.
 
 ### Sheet 4 — Powerlink (3개 영역)
 
@@ -440,34 +462,44 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 
 ### Sheet 5 — Powerlink Keywords (Ad Group별 구분)
 
-2단 헤더는 Sheet 3과 동일하며 **Spacer 열(G) 규칙도 그대로 적용**한다. 그룹명 밴드도 `B:F` / `H:L`로 나누어 표시하여 Spacer 열을 가로지르지 않는다.
+컬럼 구성과 Spacer 규칙은 Sheet 3과 동일하다 (`Keyword (EN) · Keyword (KO) · Cost · Imp · Click · CTR · CPC`, PC `B:H` / Spacer `I` / MO `J:P`).
 
-**Ad Group 블록 구조** — 헤더 아래에 4개 그룹 블록을 세로로 배치:
+**행 구성**
+
+| 행 | 내용 |
+|---|---|
+| 6 | Device Group Header (`Powerlink_PC` / `Powerlink_MO`) |
+| 7 | 빈 행 |
+| 8~ | Ad Group 블록 반복 |
+
+**Ad Group 블록** — `Branded → Shoes → Competitors → Generic` 순서 고정. 각 블록은 다음 순서를 정확히 따른다.
+
+1. Ad Group Header (그룹별 배경색, `B:H` / `J:P` 각각 병합)
+2. Keyword Column Header
+3. **TOTAL Row** (`{Group} TOTAL`)
+4. Keyword 데이터 (Impression DESC)
+5. 빈 행 1개
+6. 다음 Ad Group
+
+- Column Header는 **각 Ad Group 블록마다 반복**한다.
+- TOTAL은 블록 하단이 아니라 **Column Header 바로 아래**에 온다.
+- 데이터가 없는 그룹은 헤더 + `No data` 행을 출력하고 순서를 유지한다.
+- 하단 전체 합계(GRAND TOTAL) 행은 두지 않는다. 검증은 4개 그룹 TOTAL의 합으로 수행한다.
+
+**그룹별 TOTAL 계산** — 해당 `Group + Device` 키워드만 대상으로 한다.
 
 ```
-[그룹명 밴드] Branded          ← 전체 폭 병합, 볼드, 배경색
-  PC 키워드 156행 (Imp DESC) │ MO 키워드 166행 (Imp DESC)
-  [소계 행] Branded Subtotal
-[빈 행 1개]
-[그룹명 밴드] Shoes
-  PC 26행 │ MO 30행
-  [소계 행]
-[빈 행 1개]
-[그룹명 밴드] Competitors
-  PC 11행 │ MO 10행
-  [소계 행]
-[빈 행 1개]
-[그룹명 밴드] Generic
-  PC 76행 │ MO 76행
-  [소계 행]
+Cost  = SUM(Group Keyword Cost)
+Imp   = SUM(Group Keyword Impression)
+Click = SUM(Group Keyword Click)
+CTR   = Group Total Click / Group Total Impression
+CPC   = Group Total Cost  / Group Total Click
 ```
 
-- **순서 고정: Branded → Shoes → Competitors → Generic**
-- 각 그룹 블록 내부는 **Impression DESC**, PC와 MO를 각각 독립 정렬
-- 한 그룹 안에서 PC/MO 행 수가 다르면 **짧은 쪽은 공백**으로 채우고, 블록 높이는 `max(PC행수, MO행수)`
-- 그룹 사이에 **빈 행 1개** 삽입
-- 각 그룹 하단에 **소계 행**(그룹명 + Imp/Click 합계 + CTR 재계산)
-- 최하단에 **전체 합계 행** — Sheet 4 Overview의 Imp/Click과 일치해야 함
+- PC와 MO는 각각 독립적으로 집계·정렬하며, 한쪽 그룹의 키워드가 적어도 행 수를 맞추지 않는다.
+- Powerlink의 키워드 Cost는 Raw Data의 키워드별 총비용을 환율 변환해 사용한다.
+
+> **참고** — 네이버 반올림 때문에 키워드 파일 총비용(23,923,009 KRW)과 일별 파일 총비용(23,923,003 KRW)에 6원 차이가 있다. Spend는 일별을 정본으로 쓰므로 Sheet 5의 Cost 합계는 Sheet 4 Spent와 소수점 이하에서 미세하게 다를 수 있다.
 
 ---
 
@@ -487,8 +519,8 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | Header 뒤 공백 행 | Report Title·모든 Section Header 다음에 **빈 행 1개**. 표 컬럼 헤더는 예외 |
 | Sheet 1 정보표 정렬 | 라벨·값 셀 모두 **가로·세로 중앙 정렬** |
 | Report Title | 각 시트 B2에 `[Client]_[Campaign Name] …` 동적 생성. 브랜드명 하드코딩 금지 |
-| Keyword Spacer 열 | Keyword 시트는 PC(B~F) · **Spacer 1열 G(완전 공백, 너비 3)** · MO(H~L) 구성 |
-| TOTAL 행 위치 | Daily Breakdown은 헤더 바로 아래, Keyword 시트는 하단 |
+| Keyword Spacer 열 | Keyword 시트는 PC(B~H, 7열) · **Spacer 1열 I(완전 공백, 너비 2.2)** · MO(J~P, 7열) 구성 |
+| TOTAL 행 위치 | **Daily Breakdown·Keyword 시트 모두 컬럼 헤더 바로 아래.** 표 하단에 두지 않는다 |
 | 지표 순서 | Daily Breakdown은 `Spent / Impression / Click / CTR`. `Cost` 표현 미사용 |
 | 결측 데이터 | Raw Data가 없는 날짜는 **빈 셀**, 성과 0은 `0`. TOTAL 행은 빈 셀을 집계하지 않음 |
 | 그룹명 밴드 | 연한 배경색 + 볼드 + 좌측 정렬, 전체 폭 병합. 4개 그룹에 각각 다른 색조 적용 |
@@ -512,7 +544,7 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | `fx` | `{ fromCountry, fromCurrency, toCountry, toCurrency, rate }` — 캠페인 단일 환율 | 사용자가 수정·삭제 시 |
 | `advBudget` | `{ currency:'USD', amount:46000 }` — 캠페인 총 Advertising Budget | 〃 |
 | `budgetBS` | `{ currency:'KRW', amount:43230000 }` — Brand Search Budget | 〃 |
-| `budgetPL` | Powerlink Budget (Raw Data 통화) | 〃 |
+| `budgetPL` | `{ currency:'KRW', amount:21169400 }` — Powerlink Budget | 〃 |
 | `agencyFeeRate` | Agency Fee 퍼센트 (예: `8`) | 〃 |
 | `bsFixedFee` | `{ pc: 5280000, mo: 37950000 }` — 브랜드검색 기간 전체 정액료(KRW) | 〃 |
 | `keywordMap` | `[{ category, ko, en }]` — KO→EN 매핑 (기본 315행) | 사용자가 삭제/교체 시 |
@@ -556,6 +588,10 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | R18 | 결측 vs 0 | Raw Data 없는 날짜는 빈 셀, 성과 0은 `0`. TOTAL 행은 빈 셀 제외 |
 | R19 | Overview | `PC / MO / Subtotal` 3행 구조. PC/MO Budget은 정액료, Subtotal은 합계 |
 | R20 | 틀 고정 | 전 시트 미사용 |
+| R21 | Powerlink Budget | Brand Search Budget과 동일하게 `[Currency][금액]` 입력 |
+| R22 | Keyword 시트 컬럼 | `EN · KO · Cost · Imp · Click · CTR · CPC` 7열 |
+| R23 | Keyword TOTAL 위치 | 컬럼 헤더 바로 아래 (Sheet 3 1개, Sheet 5 그룹별) |
+| R24 | Brand Search 키워드 Cost | 정액료를 노출 비중으로 배분 (Raw가 0원이므로) |
 | R14 | Agency Fee | % 입력 → `Total Spent × Rate` 수식으로 금액 산출 |
 
 ### 미해결
@@ -571,6 +607,8 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | Q12 | Raw Data 업로드를 4개 슬롯으로 나눌지 | 네이버는 일별/키워드 2개 파일로만 내려받히므로 **2개 슬롯 유지**, 4종 데이터는 `캠페인유형`으로 자동 분리 |
 | Q13 | Powerlink Overview의 **PC/MO Budget** 입력이 없다 | PC·MO Budget은 공란, Subtotal에만 Powerlink Budget 표기. 디바이스별 예산이 필요하면 입력란 추가 필요 |
 | Q14 | 지표 순서·틀 고정 변경을 Sheet 2에만 적용할지 | Sheet 2·4가 같은 구조를 공유해야 하므로 **양쪽 모두 적용**. Sheet 4의 그룹별 Daily Breakdown도 동일 |
+| Q15 | Brand Search 키워드 Cost 배분 기준을 **노출 비중**으로 할지 클릭 비중으로 할지 | 노출 비중. 일별 PC/MO 배분과 동일한 기준 |
+| Q16 | Ad Group 밴드 다음에 빈 행을 넣지 않아 '헤더 뒤 공백 행' 일반 규칙과 어긋난다 | 새 규격의 6단계 순서가 더 구체적이므로 그쪽을 따름. Sheet 4의 그룹 밴드는 기존대로 빈 행 유지 |
 | Q6 | Powerlink에서 제외한 `ALO Wellness Club` 캠페인의 향후 처리 | 현재 스코프 제외. 캠페인 필터는 Settings에서 변경 가능하도록 설계 |
 | Q7 | Excel에 브랜드 로고/컬러 등 **디자인 가이드** 적용 여부 | 기본 남색 헤더 테마 |
 | Q8 | **기존 ALO Weekly Report 원본 파일 미수령.** 레이아웃은 서면 규격대로 구현했으나 폰트·색상·열너비 등 세부 서식은 원본 대조 필요 | 첨부 파일 수령 시 재현도 보완 |

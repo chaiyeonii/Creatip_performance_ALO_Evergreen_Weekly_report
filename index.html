@@ -146,8 +146,9 @@
     </div>
 
     <div style="font-weight:600;font-size:13px;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)">Powerlink</div>
-    <div class="grid g2">
-      <div><label>Budget <span id="curPL" style="opacity:.7"></span> <span style="color:var(--err)">*</span></label>
+    <div class="grid g3">
+      <div><label>Budget — Currency</label><select id="plCur"></select></div>
+      <div><label>Budget — Amount <span style="color:var(--err)">*</span></label>
         <input type="number" id="plAmt" min="0" step="1" placeholder="예: 21169400"></div>
       <div><label>Powerlink Campaign</label><select id="plCampaign"></select></div>
     </div>
@@ -571,7 +572,7 @@ function blankState(){
     campaign : { client:'', name:'', start:'', end:'', plCampaign:'' },
     advBudget : { currency:'USD', amount:null },      // whole-campaign advertising budget
     budgetBS  : { currency:'KRW', amount:null },      // Brand Search budget
-    budgetPL  : null,                                 // Powerlink budget, in the raw-data currency
+    budgetPL  : { currency:'KRW', amount:null },       // Powerlink budget
     bsFixedFee : { pc:null, mo:null },                // in the raw-data currency
     agencyFeeRate : null,                             // percent
     fx : { fromCountry:'KR', fromCurrency:'KRW',
@@ -603,7 +604,9 @@ function load(){
     S.fx        = Object.assign(B.fx, o.fx||{});
     S.advBudget = Object.assign(B.advBudget, o.advBudget||{});
     S.budgetBS  = Object.assign(B.budgetBS, o.budgetBS||{});
-    if(typeof o.budgetPL === 'number') S.budgetPL = o.budgetPL;
+    S.budgetPL  = (typeof o.budgetPL === 'number')
+                ? { currency:(o.fx&&o.fx.fromCurrency)||'KRW', amount:o.budgetPL }   // pre-currency saves
+                : Object.assign(B.budgetPL, o.budgetPL||{});
     if(!Array.isArray(S.keywordMap) || !S.keywordMap.length) S.keywordMap = parseKeywordCsv(DEFAULT_KEYWORD_CSV);
   }catch(e){ console.warn('load failed',e); }
 }
@@ -784,6 +787,7 @@ function ingest(rows, kind, fileName){
       rec.cost = num(r[idx.cost]);
     }else{
       rec.keyword = String(r[idx.keyword]??'').trim(); if(!rec.keyword) continue;
+      rec.cost = idx.cost===undefined ? 0 : num(r[idx.cost]);
     }
     out.push(rec);
   }
@@ -810,6 +814,13 @@ function buildModel(){
     while(d<=end){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); }
     return out;
   })();
+
+  /* --- currency: ONE rate for the whole campaign, From -> To --- */
+  const missingFx = new Set();
+  const sameCur = S.fx.fromCurrency===S.fx.toCurrency;
+  const rate = num(S.fx.rate);
+  if(!sameCur && !rate) missingFx.add(S.fx.fromCurrency||'?');
+  const usd = (local) => convertAmount(local, S.fx.fromCurrency);
 
   /* --- Brand Search daily: aggregate (date,device), then inject fixed fee --- */
   const bsRows = bsDaily.filter(inRange);
@@ -862,12 +873,13 @@ function buildModel(){
       const g = withGroup ? S.adGroupMap[r.adGroup] : null;
       if(withGroup && !g) continue;
       const k = (withGroup? g+'|':'') + r.device+'|'+r.keyword;
-      const a = m.get(k) || {group:g, device:r.device, ko:r.keyword, imp:0, click:0};
-      a.imp+=r.imp; a.click+=r.click; m.set(k,a);
+      const a = m.get(k) || {group:g, device:r.device, ko:r.keyword, imp:0, click:0, costLocal:0};
+      a.imp+=r.imp; a.click+=r.click; a.costLocal+=(r.cost||0); m.set(k,a);
     }
     const out=[];
     for(const a of m.values()){
       if(a.imp<=0 && a.click<=0) continue;      // rule: keep only Imp>0 or Click>0
+      a.cost = usd(a.costLocal);
       a.en = enOf(a.ko);
       if(a.en==='[UNMAPPED]'){
         const u = unmappedKw.get(a.ko) || 0; unmappedKw.set(a.ko, u+a.imp);
@@ -879,13 +891,16 @@ function buildModel(){
   }
   const bsKeywords = aggKw(bsKw, false);
   const plKeywords = aggKw(plKw, true);
+  /* Brand Search is a fixed-fee product, so its raw keyword cost is always 0.
+     Spread each device's fee across that device's keywords by impression share,
+     which keeps the keyword total equal to the Overview subtotal. */
+  for(const dev of DEVICES){
+    const fee = convertAmount(num(dev==='PC'?S.bsFixedFee.pc:S.bsFixedFee.mo), S.fx.fromCurrency);
+    const list = bsKeywords.filter(k=>k.device===dev);
+    const impSum = list.reduce((a,k)=>a+k.imp,0);
+    for(const k of list) k.cost = impSum ? fee*k.imp/impSum : 0;
+  }
 
-  /* --- currency: ONE rate for the whole campaign, From -> To --- */
-  const missingFx = new Set();
-  const sameCur = S.fx.fromCurrency===S.fx.toCurrency;
-  const rate = num(S.fx.rate);
-  if(!sameCur && !rate) missingFx.add(S.fx.fromCurrency||'?');
-  const usd = (local) => convertAmount(local, S.fx.fromCurrency);
   /* a device with no raw row for a date stays null -> the cell is left blank,
      which is different from a row that exists but performed zero */
   const toDaily = agg => {
@@ -924,7 +939,7 @@ function buildModel(){
     },
     plBudget: {
       pc: null, mo: null,
-      total: convertAmount(num(S.budgetPL), S.fx.fromCurrency)
+      total: convertAmount(num(S.budgetPL.amount), S.budgetPL.currency)
     },
     budgetTotal,
     agencyRate: num(S.agencyFeeRate)/100,
@@ -1183,67 +1198,93 @@ function overviewBlock(ws,startRow,mediaName,adName,budgets,dailyTotalRow,W){
   return { pcRow:rPC, moRow:rMO, subRow:rSub, nextRow:rSub+1 };
 }
 
-/* --- keyword tables: PC = C0..C0+4, spacer = C0+5, MO = C0+6..C0+10 --- */
-const KW_PC=0, KW_MO=6;
-function keywordHeader(ws,row,label,W){
-  ws.mergeCells(row,C0+KW_PC,row,C0+KW_PC+4); ws.getCell(row,C0+KW_PC).value=label+'_PC';
-  ws.mergeCells(row,C0+KW_MO,row,C0+KW_MO+4); ws.getCell(row,C0+KW_MO).value=label+'_MO';
-  styleHeader(ws,row,C0+KW_PC,C0+KW_PC+4,BLK.pc);
-  styleHeader(ws,row,C0+KW_MO,C0+KW_MO+4,BLK.mo);
-  const r2=row+1;
-  ['Keyword (EN)','Keyword (KO)','Impression','Click','CTR'].forEach((h,i)=>{
-    ws.getCell(r2,C0+KW_PC+i).value=h; ws.getCell(r2,C0+KW_MO+i).value=h;
-    noteW(W,C0+KW_PC+i,h); noteW(W,C0+KW_MO+i,h);
-  });
-  styleHeader(ws,r2,C0+KW_PC,C0+KW_PC+4,BLK2.pc);
-  styleHeader(ws,r2,C0+KW_MO,C0+KW_MO+4,BLK2.mo);
-  return r2+1;
-}
+/* --- keyword tables ---------------------------------------------------------
+   PC = C0..C0+6 | spacer = C0+7 | MO = C0+8..C0+14
+   columns: Keyword (EN) | Keyword (KO) | Cost | Imp | Click | CTR | CPC
+   The TOTAL row sits directly under the column header, above the keywords. */
+const KW_PC=0, KW_SPACER=7, KW_MO=8, KW_W=7;
+const KW_COLS=['Keyword (EN)','Keyword (KO)','Cost','Imp','Click','CTR','CPC'];
+const KW_SIDES=[KW_PC,KW_MO];
+
 function kwCols(){
   const out=[];
-  for(const b of [KW_PC,KW_MO]) for(let i=0;i<5;i++) out.push(C0+b+i);
+  for(const b of KW_SIDES) for(let i=0;i<KW_W;i++) out.push(C0+b+i);
   return out;
 }
-function kwFmt(cell,c){
-  const rel=(c-C0-KW_PC)%KW_MO;
-  if(rel===2||rel===3) cell.numFmt=NF_INT;
-  if(rel===4) cell.numFmt=NF_PCT;
+function kwFmt(cell,i){
+  if(i===2||i===6) cell.numFmt=NF_USD2;
+  if(i===3||i===4) cell.numFmt=NF_INT;
+  if(i===5)        cell.numFmt=NF_PCT;
 }
-function keywordRows(ws,startRow,pcList,moList,W){
+/* row 1 of the header: which device each side belongs to */
+function kwDeviceBand(ws,row,label,W){
+  const names=[label+'_PC',label+'_MO'];
+  KW_SIDES.forEach((b,k)=>{
+    ws.mergeCells(row,C0+b,row,C0+b+KW_W-1);
+    ws.getCell(row,C0+b).value=names[k];
+    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?BLK.pc:BLK.mo);
+  });
+  ws.getRow(row).height=18;
+  return row+1;
+}
+/* row 2 of the header: the column names, repeated on both sides */
+function kwColumnHeader(ws,row,W){
+  KW_SIDES.forEach((b,k)=>{
+    KW_COLS.forEach((h,i)=>{ ws.getCell(row,C0+b+i).value=h; noteW(W,C0+b+i,h); });
+    styleHeader(ws,row,C0+b,C0+b+KW_W-1,k===0?BLK2.pc:BLK2.mo);
+  });
+  ws.getRow(row).height=17;
+  return row+1;
+}
+/* TOTAL row — written before the data, summing the range it will occupy */
+function kwTotalRow(ws,row,label,counts,firstDataRow,dark,W){
+  KW_SIDES.forEach((b,k)=>{
+    const n=counts[k];
+    ws.getCell(row,C0+b).value=label; ws.mergeCells(row,C0+b,row,C0+b+1);
+    noteW(W,C0+b,label);
+    if(n>0){
+      const a=firstDataRow, z=firstDataRow+n-1;
+      for(let i=2;i<=4;i++)
+        ws.getCell(row,C0+b+i).value={formula:`SUM(${L(C0+b+i)}${a}:${L(C0+b+i)}${z})`};
+      ws.getCell(row,C0+b+5).value={formula:`IFERROR(${L(C0+b+4)}${row}/${L(C0+b+3)}${row},0)`};
+      ws.getCell(row,C0+b+6).value={formula:`IFERROR(${L(C0+b+2)}${row}/${L(C0+b+4)}${row},0)`};
+    }
+    for(let i=0;i<KW_W;i++){
+      const cell=ws.getCell(row,C0+b+i);
+      cell.font={bold:true,color:{argb:dark?'FFFFFFFF':'FF1F3864'}};
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:dark?NAVY:TOTROW}};
+      cell.border={top:THIN,left:THIN,bottom:MED,right:THIN};
+      kwFmt(cell,i);
+    }
+  });
+  ws.getRow(row).height=17;
+  return row+1;
+}
+/* keyword rows — the two sides are independent; the shorter one just stops */
+function kwDataRows(ws,startRow,pcList,moList,W){
+  const lists=[pcList,moList];
   const n=Math.max(pcList.length,moList.length);
-  const cols=kwCols();
-  let r=startRow;
   for(let i=0;i<n;i++){
-    for(const p of [[pcList[i],C0+KW_PC],[moList[i],C0+KW_MO]]){
-      const k=p[0], b=p[1];
-      if(!k) continue;
-      ws.getCell(r,b).value=k.en;    ws.getCell(r,b+1).value=k.ko;
-      ws.getCell(r,b+2).value=k.imp; ws.getCell(r,b+3).value=k.click;
-      ws.getCell(r,b+4).value={formula:`IFERROR(${L(b+3)}${r}/${L(b+2)}${r},0)`};
-      noteW(W,b,k.en); noteW(W,b+1,k.ko);
-      noteNum(W,b+2,k.imp,'int'); noteNum(W,b+3,k.click,'int');
-    }
-    for(const c of cols){ const cell=ws.getCell(r,c); cell.border=BOX; kwFmt(cell,c); }
-    r++;
+    const r=startRow+i;
+    KW_SIDES.forEach((b,k)=>{
+      const kw=lists[k][i];
+      if(kw){
+        ws.getCell(r,C0+b).value=kw.en;    ws.getCell(r,C0+b+1).value=kw.ko;
+        ws.getCell(r,C0+b+2).value=kw.cost;
+        ws.getCell(r,C0+b+3).value=kw.imp; ws.getCell(r,C0+b+4).value=kw.click;
+        ws.getCell(r,C0+b+5).value={formula:`IFERROR(${L(C0+b+4)}${r}/${L(C0+b+3)}${r},0)`};
+        ws.getCell(r,C0+b+6).value={formula:`IFERROR(${L(C0+b+2)}${r}/${L(C0+b+4)}${r},0)`};
+        noteW(W,C0+b,kw.en); noteW(W,C0+b+1,kw.ko);
+        noteNum(W,C0+b+2,kw.cost,'m2');
+        noteNum(W,C0+b+3,kw.imp,'int'); noteNum(W,C0+b+4,kw.click,'int');
+      }
+      for(let i2=0;i2<KW_W;i2++){
+        const cell=ws.getCell(r,C0+b+i2);
+        cell.border=BOX; kwFmt(cell,i2);
+      }
+    });
   }
-  return { firstRow:startRow, lastRow:r-1, nextRow:r, count:n };
-}
-function keywordTotalRow(ws,r,label,first,last,hasRows,dark,W){
-  for(const b of [C0+KW_PC,C0+KW_MO]){
-    ws.getCell(r,b).value=label; ws.mergeCells(r,b,r,b+1);
-    if(hasRows){
-      for(let i=2;i<=3;i++) ws.getCell(r,b+i).value={formula:`SUM(${L(b+i)}${first}:${L(b+i)}${last})`};
-      ws.getCell(r,b+4).value={formula:`IFERROR(${L(b+3)}${r}/${L(b+2)}${r},0)`};
-    }
-  }
-  for(const c of kwCols()){
-    const cell=ws.getCell(r,c);
-    cell.font={bold:true,color:{argb:dark?'FFFFFFFF':'FF1F3864'}};
-    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:dark?NAVY:TOTROW}};
-    cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
-    kwFmt(cell,c);
-  }
-  return r+1;
+  return startRow+n;
 }
 
 async function buildWorkbook(M){
@@ -1279,16 +1320,18 @@ async function buildWorkbook(M){
   /* ================= Sheet 3: Brand Search Keywords ================= */
   {
     const W={};
-    titleBand(wsBSK,R0,C0,cEnd11,T.bsk,NAVY,'FFFFFFFF',13);
-    titleBand(wsBSK,R0+2,C0,cEnd11,'Keyword Breakdown by Device  ·  '+fmtPeriod());
-    const start = keywordHeader(wsBSK,R0+4,'Brand Search',W);
+    titleBand(wsBSK,R0,C0,C0+14,T.bsk,NAVY,'FFFFFFFF',13);
+    titleBand(wsBSK,R0+2,C0,C0+14,'Keyword Breakdown by Device  ·  '+fmtPeriod());
+    let r = kwDeviceBand(wsBSK,R0+4,'Brand Search',W);   // 6
+    r = kwColumnHeader(wsBSK,r,W);                       // 7
     const pc = M.bsKeywords.filter(k=>k.device==='PC');
     const mo = M.bsKeywords.filter(k=>k.device==='MO');
-    const kb = keywordRows(wsBSK,start,pc,mo,W);
-    keywordTotalRow(wsBSK,kb.nextRow,'TOTAL',kb.firstRow,kb.lastRow,kb.count>0,true,W);
-    delete W[C0+5];
+    const totalRow = r;                                  // 8 — TOTAL sits above the keywords
+    r = kwTotalRow(wsBSK,totalRow,'TOTAL',[pc.length,mo.length],totalRow+1,true,W);
+    kwDataRows(wsBSK,r,pc,mo,W);
+    delete W[C0+KW_SPACER];
     applyW(wsBSK,W,8,30);
-    wsBSK.getColumn(C0+5).width=2.2;   // spacer stays narrow, exempt from the minimum
+    wsBSK.getColumn(C0+KW_SPACER).width=2.2;
   }
 
   /* ================= Sheet 4: Powerlink ================= */
@@ -1319,51 +1362,34 @@ async function buildWorkbook(M){
   /* ================= Sheet 5: Powerlink Keywords ================= */
   {
     const W={};
-    titleBand(wsPLK,R0,C0,cEnd11,T.plk,NAVY,'FFFFFFFF',13);
-    titleBand(wsPLK,R0+2,C0,cEnd11,'Keyword Breakdown by Ad Group & Device  ·  '+fmtPeriod());
-    let kr = keywordHeader(wsPLK,R0+4,'Powerlink',W);
-    const subFirst=[], subLast=[];
+    titleBand(wsPLK,R0,C0,C0+14,T.plk,NAVY,'FFFFFFFF',13);
+    titleBand(wsPLK,R0+2,C0,C0+14,'Keyword Breakdown by Ad Group & Device  ·  '+fmtPeriod());
+    let r = kwDeviceBand(wsPLK,R0+4,'Powerlink',W);      // 6
+    r += 1;                                              // 7 blank under the device band
     for(const g of GROUPS){
-      titleBand(wsPLK,kr,C0+KW_PC,C0+KW_PC+4,g,GROUP_FILL[g]);
-      titleBand(wsPLK,kr,C0+KW_MO,C0+KW_MO+4,g,GROUP_FILL[g]);
-      kr += 2;
+      // Ad Group band -> column header -> TOTAL -> keywords -> blank row
+      for(const b of KW_SIDES) titleBand(wsPLK,r,C0+b,C0+b+KW_W-1,g,GROUP_FILL[g]);
+      r += 1;
+      r = kwColumnHeader(wsPLK,r,W);
       const pc = M.plKeywords.filter(k=>k.group===g && k.device==='PC');
       const mo = M.plKeywords.filter(k=>k.group===g && k.device==='MO');
       if(!pc.length && !mo.length){
-        for(const b of [C0+KW_PC,C0+KW_MO]){
-          wsPLK.mergeCells(kr,b,kr,b+4);
-          wsPLK.getCell(kr,b).value='No data';
-          wsPLK.getCell(kr,b).alignment=CENTER;
-          wsPLK.getCell(kr,b).border=BOX;
+        for(const b of KW_SIDES){
+          wsPLK.mergeCells(r,C0+b,r,C0+b+KW_W-1);
+          wsPLK.getCell(r,C0+b).value='No data';
+          wsPLK.getCell(r,C0+b).alignment=CENTER;
+          wsPLK.getCell(r,C0+b).border=BOX;
         }
-        kr+=2; continue;
+        r += 2; continue;
       }
-      const blk = keywordRows(wsPLK,kr,pc,mo,W);
-      subFirst.push(blk.firstRow); subLast.push(blk.lastRow);
-      kr = keywordTotalRow(wsPLK,blk.nextRow,g+' Subtotal',blk.firstRow,blk.lastRow,true,false,W);
-      kr++;
+      const totalRow = r;
+      r = kwTotalRow(wsPLK,totalRow,g+' TOTAL',[pc.length,mo.length],totalRow+1,false,W);
+      r = kwDataRows(wsPLK,r,pc,mo,W);
+      r += 1;                                            // blank row between ad groups
     }
-    if(subFirst.length){
-      const gr=kr;
-      for(const b of [C0+KW_PC,C0+KW_MO]){
-        wsPLK.getCell(gr,b).value='GRAND TOTAL'; wsPLK.mergeCells(gr,b,gr,b+1);
-        for(let i=2;i<=3;i++){
-          const parts = subFirst.map((f,k)=>`SUM(${L(b+i)}${f}:${L(b+i)}${subLast[k]})`);
-          wsPLK.getCell(gr,b+i).value={formula:parts.join('+')};
-        }
-        wsPLK.getCell(gr,b+4).value={formula:`IFERROR(${L(b+3)}${gr}/${L(b+2)}${gr},0)`};
-      }
-      for(const c of kwCols()){
-        const cell=wsPLK.getCell(gr,c);
-        cell.font={bold:true,color:{argb:'FFFFFFFF'}};
-        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
-        cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
-        kwFmt(cell,c);
-      }
-    }
-    delete W[C0+5];
+    delete W[C0+KW_SPACER];
     applyW(wsPLK,W,8,30);
-    wsPLK.getColumn(C0+5).width=2.2;   // spacer stays narrow, exempt from the minimum
+    wsPLK.getColumn(C0+KW_SPACER).width=2.2;
   }
 
   /* ================= Sheet 1: Overall ================= */
@@ -1551,14 +1577,15 @@ function renderSetup(){
   const raw=S.fx.fromCurrency||'KRW';
   $('curFeePC').textContent='('+raw+')';
   $('curFeeMO').textContent='('+raw+')';
-  $('curPL').textContent='('+raw+')';
 
   $('bsCur').innerHTML=budgetCurrencyOptions(S.budgetBS.currency);
   if(!$('bsCur').value){ S.budgetBS.currency=raw; $('bsCur').value=raw; }
   $('bsAmt').value=S.budgetBS.amount??'';
   $('feePC').value=S.bsFixedFee.pc??'';
   $('feeMO').value=S.bsFixedFee.mo??'';
-  $('plAmt').value=S.budgetPL??'';
+  $('plCur').innerHTML=budgetCurrencyOptions(S.budgetPL.currency);
+  if(!$('plCur').value){ S.budgetPL.currency=raw; $('plCur').value=raw; }
+  $('plAmt').value=S.budgetPL.amount??'';
 
   const camps=detectedPlCampaigns();
   $('plCampaign').innerHTML=camps.length
@@ -1566,7 +1593,7 @@ function renderSetup(){
     : '<option value="">(업로드 필요)</option>';
 
   const bs=convertAmount(num(S.budgetBS.amount),S.budgetBS.currency);
-  const pl=convertAmount(num(S.budgetPL),raw);
+  const pl=convertAmount(num(S.budgetPL.amount),S.budgetPL.currency);
   const media=bs+pl;
   const adv=convertAmount(num(S.advBudget.amount),S.advBudget.currency);
   let h='';
@@ -1687,7 +1714,7 @@ function validate(){
   if(S.agencyFeeRate===null||S.agencyFeeRate==='') errs.push('Agency Fee (%)를 입력하세요.');
   if(!S.campaign.start||!S.campaign.end) errs.push('Campaign Period를 입력하세요.');
   if(!num(S.budgetBS.amount)) errs.push('Brand Search Budget을 입력하세요.');
-  if(!num(S.budgetPL)) errs.push('Powerlink Budget을 입력하세요.');
+  if(!num(S.budgetPL.amount)) errs.push('Powerlink Budget을 입력하세요.');
   if(!num(S.bsFixedFee.pc)&&!num(S.bsFixedFee.mo)) errs.push('Brand Search 정액료(PC/MO)를 입력하세요.');
   if(S.fx.fromCurrency!==S.fx.toCurrency && !num(S.fx.rate)) errs.push('Exchange Rate를 입력하세요.');
   const unAg=detectedAdGroups().filter(g=>!S.adGroupMap[g]);
@@ -1820,7 +1847,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   bindNum('bsAmt',v=>S.budgetBS.amount=v);
   bindNum('feePC',v=>S.bsFixedFee.pc=v);
   bindNum('feeMO',v=>S.bsFixedFee.mo=v);
-  bindNum('plAmt',v=>S.budgetPL=v);
+  bindNum('plAmt',v=>S.budgetPL.amount=v);
+  on('plCur','change',()=>{ S.budgetPL.currency=$('plCur').value; save(); renderSetup(); refreshValidation(); });
   on('bsCur','change',()=>{ S.budgetBS.currency=$('bsCur').value; save(); renderSetup(); refreshValidation(); });
   on('plCampaign','change',()=>{
     S.campaign.plCampaign=$('plCampaign').value; autoMapAdGroups(); save(); renderAll();
@@ -1833,6 +1861,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     const allowed=[S.fx.fromCurrency,S.fx.toCurrency];
     if(!allowed.includes(S.advBudget.currency)) S.advBudget.currency=S.fx.toCurrency;
     if(!allowed.includes(S.budgetBS.currency))  S.budgetBS.currency=S.fx.fromCurrency;
+    if(!allowed.includes(S.budgetPL.currency))  S.budgetPL.currency=S.fx.fromCurrency;
     save(); renderAll();
   }
   on('fxFrom','change',fxChanged);
