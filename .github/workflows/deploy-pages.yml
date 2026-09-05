@@ -25,11 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Requires Settings > Pages > Source = "GitHub Actions" (one-time, by the repo owner).
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          # turns Pages on for this repo if it is not enabled yet
-          enablement: true
 
       - name: Stage site
         # publish only the tool itself — the PRD and mapping stay out of the site
