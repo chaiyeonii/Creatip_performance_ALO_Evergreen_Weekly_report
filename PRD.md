@@ -1,13 +1,14 @@
-# PRD — ALO Evergreen Weekly Report 자동화 툴
+# PRD — Weekly Report Generator (네이버 검색광고)
 
 | 항목 | 내용 |
 |---|---|
-| 제품명 | ALO Evergreen Weekly Report Generator |
+| 제품명 | Weekly Report Generator |
 | 목적 | 네이버 검색광고 Raw Data(CSV/XLSX)를 업로드하면 클라이언트 제출용 5-Sheet Excel 리포트를 자동 생성 |
+| 적용 범위 | **특정 브랜드 전용이 아님.** Client / Campaign Name을 입력받아 어떤 광고주에게도 재사용 |
 | 형태 | 단일 HTML 파일 (`index.html`) — 더블클릭으로 브라우저 실행, 서버·설치 불필요 |
 | 라이브러리 | SheetJS(xlsx, 파싱) + ExcelJS(서식·수식 포함 xlsx 출력), CDN 로드 |
 | 데이터 저장 | 브라우저 `localStorage` (서버 전송 없음) |
-| 산출물 | `ALO_Evergreen_Weekly_Report_YYYYMMDD.xlsx` |
+| 산출물 | `[Client]_[Campaign]_Weekly_Report_YYYYMMDD.xlsx` |
 
 ---
 
@@ -22,7 +23,8 @@
 | U3 | Powerlink Budget | KRW (number) | 〃 |
 | U4 | 월별 환율 (KRW→USD) | `YYYY-MM` → number | **월별로 개별 입력.** 미입력 월의 데이터가 감지되면 리포트 생성을 차단하고 입력을 요구 |
 | U5 | Brand Search 정액료 (PC / MO) | KRW (number × 2) | 브랜드검색은 정액제라 Raw Data 총비용이 0원. **리포팅 기간 전체 금액**을 PC/MO로 나누어 입력 (예: PC 5,280,000 / MO 37,950,000) |
-| U5b | Client / Campaign Name | text | Overall 시트 Campaign Information에 표기. 기본값 `ALO` / `Evergreen SA Campaign` |
+| U5b | **Client** | text | **필수.** 모든 시트 제목·Campaign Information에 반영. 기본값 없음 (예: `ALO`, `FIGS`) |
+| U5b2 | **Campaign Name** | text | **필수.** 〃 (예: `Evergreen`, `Always-on`) |
 | U5c | Agency Fee | KRW (number) | Overall 시트 Campaign Information에 별도 행으로 표기. 캠페인 시작월 환율로 USD 변환. Advertising Budget·Total Spent와 합산하지 않음 |
 | U6 | Keyword Mapping (KO→EN) | 표 (Category, KO, EN) | `keyword_mapping.csv`(315행)를 기본값으로 내장. 툴 내 표에서 편집·추가·CSV 교체 가능 |
 | U7 | Ad Group Mapping | 표 (Raw Ad Group → Standard) | Raw의 광고그룹명을 4개 표준값으로 정규화. 업로드 시 자동 추론 + 수동 수정 |
@@ -32,7 +34,9 @@
 - 환율은 **절대 자동 검색·추정하지 않는다.** 새로운 월의 데이터가 들어오면 반드시 모달로 물어본다.
 - 예산·정액료는 KRW로 입력받아 해당 월 환율로 USD 변환한다.
 - VAT는 **제외 기준(Raw Data 총비용 그대로)** 을 사용한다.
+- **Client / Campaign Name은 필수**이며, 미입력 시 생성 버튼이 비활성화된다.
 - U1~U5 중 하나라도 미입력이면 **생성 버튼을 비활성화**하고 어떤 값이 비었는지 표시한다.
+- Settings 화면은 입력값에 따라 **생성될 5개 시트 제목을 실시간 미리보기**로 보여준다.
 
 ---
 
@@ -210,6 +214,39 @@ CPM = Total Spend / Total Impression × 1000
 
 ## 4. Sheet Structure
 
+### 4.0 공통 규칙 — Report Naming & Layout Offset
+
+**특정 브랜드명·캠페인명을 코드에 고정하지 않는다.** 모든 제목과 Campaign Information 값은 사용자가 입력한 Client / Campaign Name을 참조해 동적으로 생성한다.
+
+**Report Title 규칙** — 각 시트 `B2`에 배치:
+
+| Sheet | Title |
+|---|---|
+| 1. Overall | `[Client]_[Campaign Name] AD Summary` |
+| 2. Brand Search | `[Client]_[Campaign Name] Brand Search Report` |
+| 3. Brand Search Keywords | `[Client]_[Campaign Name] Brand Search Keyword Report` |
+| 4. Powerlink | `[Client]_[Campaign Name] Powerlink Report` |
+| 5. Powerlink Keywords | `[Client]_[Campaign Name] Powerlink Keyword Report` |
+
+예시 — Client `ALO` / Campaign `Evergreen` → `ALO_Evergreen AD Summary`
+Client `FIGS` / Campaign `Always-on` → `FIGS_Always-on AD Summary`
+
+**Layout Offset 규칙** — 전 시트 공통:
+
+- **A열 = 완전 공백** (너비 2.4), **1행 = 완전 공백** (높이 9)
+- 모든 Content Block은 **B2부터** 시작한다. 제목만 옮기는 것이 아니라 표·헤더·데이터 전체가 한 칸씩 이동한다.
+- 제목은 필요 시 우측 여러 열에 걸쳐 병합할 수 있으나 **시작 위치는 항상 B2**.
+
+**시트별 행 배치** (`R0 = 2`, `C0 = B`):
+
+| 시트 | 행 배치 |
+|---|---|
+| 1 Overall | B2 제목 · B4 Campaign Information · B5~B11 항목 7행 · B13 Media Summary · B14 헤더 · B15~B17 데이터 |
+| 2 · 4 | B2 제목 · B4 Overview · B5 헤더 · B6 값 · B8 Daily Breakdown · B9~B10 2단 헤더 · B11 TOTAL · B12~ 일별 |
+| 3 · 5 | B2 제목 · B4 부제 · B5~B6 2단 헤더 · B7~ 데이터 |
+
+Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)** · `H~L` (MO 5열) 이다.
+
 ### Sheet 1 — Overall (Summary Report)
 
 정형화된 Excel Report Table 형태. 카드/대시보드형 레이아웃은 사용하지 않는다.
@@ -218,8 +255,8 @@ CPM = Total Spend / Total Impression × 1000
 
 | 항목 | 값 | 산출 |
 |---|---|---|
-| Client | ALO | 사용자 입력 |
-| Campaign | Evergreen SA Campaign | 사용자 입력 |
+| Client | *(사용자 입력값)* | User Input — 하드코딩 금지 |
+| Campaign | *(사용자 입력값)* | User Input — 하드코딩 금지 |
 | Period | 2026-07-07 ~ 2026-08-06 | Campaign Period |
 | Total Spent | USD | Media Summary Total 행의 Spent를 **수식 참조** |
 | Advertising Budget | USD | Media Summary Total 행의 Budget을 **수식 참조** |
@@ -278,12 +315,13 @@ CPM = Total Spend / Total Impression × 1000
 
 2단 헤더. **PC 블록과 MO 블록 사이에 Spacer 열 1개를 둔다.**
 
-| A~E: Brand Search_PC | F | G~K: Brand Search_MO |
+| B~F: Brand Search_PC | G | H~L: Brand Search_MO |
 |---|---|---|
 | Keyword (EN) · Keyword (KO) · Imp · Click · CTR | (빈 열) | Keyword (EN) · Keyword (KO) · Imp · Click · CTR |
 
-- **Spacer 열(F)**: 데이터·테두리·배경 전부 없음. 열 너비 3. 오직 시각적 분리 용도
-- PC 헤더는 A:E 병합, MO 헤더는 G:K 병합 → **두 개의 독립된 표처럼 인식**되게 구성
+- **Spacer 열(G)**: 데이터·테두리·배경 전부 없음. 열 너비 3. 오직 시각적 분리 용도
+  (예외: 2행 제목 밴드와 4행 부제 밴드만 전체 폭을 병합한다 — 제목 병합 허용 규칙)
+- PC 헤더는 B:F 병합, MO 헤더는 H:L 병합 → **두 개의 독립된 표처럼 인식**되게 구성
 - PC 블록(35행)과 MO 블록(58행)은 **완전히 독립 집계**. 행 수가 다르면 짧은 쪽은 공백
 - 각 블록 내 **Impression DESC** 정렬
 - CTR = `=IFERROR(Click/Imp,0)` 수식
@@ -335,7 +373,7 @@ CPM = Total Spend / Total Impression × 1000
 
 ### Sheet 5 — Powerlink Keywords (Ad Group별 구분)
 
-2단 헤더는 Sheet 3과 동일하며 **Spacer 열(F) 규칙도 그대로 적용**한다. 그룹명 밴드도 A:E / G:K 로 나누어 표시하여 Spacer 열을 가로지르지 않는다.
+2단 헤더는 Sheet 3과 동일하며 **Spacer 열(G) 규칙도 그대로 적용**한다. 그룹명 밴드도 `B:F` / `H:L`로 나누어 표시하여 Spacer 열을 가로지르지 않는다.
 
 **Ad Group 블록 구조** — 헤더 아래에 4개 그룹 블록을 세로로 배치:
 
@@ -378,7 +416,9 @@ CPM = Total Spend / Total Impression × 1000
 | 정수 | `#,##0` (Imp / Click) |
 | 헤더 서식 | 진한 남색 배경 + 흰색 볼드, 2단 헤더 가운데 병합, 전 시트 동일 규칙 |
 | Device Group 구분 | 빈 열 삽입 없이 **medium 세로 테두리 + 블록별 헤더 색**으로 Total/PC/MO 분리 (Daily Breakdown) |
-| Keyword Spacer 열 | Keyword 시트는 PC(5열) · **Spacer 1열(완전 공백, 너비 3)** · MO(5열) 구성 |
+| Layout Offset | **A열·1행 공백**, 모든 Content는 B2부터. 전 시트 동일 |
+| Report Title | 각 시트 B2에 `[Client]_[Campaign Name] …` 동적 생성. 브랜드명 하드코딩 금지 |
+| Keyword Spacer 열 | Keyword 시트는 PC(B~F) · **Spacer 1열 G(완전 공백, 너비 3)** · MO(H~L) 구성 |
 | TOTAL 행 위치 | Daily Breakdown은 헤더 바로 아래, Keyword 시트는 하단 |
 | 그룹명 밴드 | 연한 배경색 + 볼드 + 좌측 정렬, 전체 폭 병합. 4개 그룹에 각각 다른 색조 적용 |
 | 소계/합계 행 | 상단 굵은 테두리 + 볼드 + 연회색 배경 |
@@ -387,17 +427,17 @@ CPM = Total Spend / Total Impression × 1000
 | 열 너비 | 콘텐츠 기준 자동 조정 (Keyword 열은 최소 20) |
 | 정렬 | 숫자 우측, 텍스트 좌측, 헤더 가운데 |
 | 검증 | 생성 시 ⓐ 그룹 합계 = 전체 합계 ⓑ Keyword 합계 = Overview Imp/Click 를 대조하고 불일치 시 경고 표시 |
-| 파일명 | `ALO_Evergreen_Weekly_Report_{DataThroughDate}.xlsx` |
+| 파일명 | `[Client]_[Campaign]_Weekly_Report_{DataThroughDate}.xlsx` (입력값에서 파일명 안전 문자로 치환) |
 
 ---
 
 ## 6. localStorage Requirements
 
-단일 루트 키 `alo_evergreen_report_v1` 아래에 JSON으로 저장한다.
+단일 루트 키 `client_report_generator_v1` 아래에 JSON으로 저장한다. 구버전 키 `alo_evergreen_report_v1`이 남아 있으면 최초 로드 시 그대로 읽어 이어받는다.
 
 | 키 | 내용 | 삭제 시점 |
 |---|---|---|
-| `campaign` | Campaign Period, Budget(BS/PL, KRW) | 사용자가 설정 초기화 시 |
+| `campaign` | **Client, Campaign Name**, Campaign Period, Budget(BS/PL, KRW), Agency Fee | 사용자가 설정 초기화 시 |
 | `fxRates` | `{ "2026-07": 1385, "2026-08": 1372 }` | 사용자가 개별 수정/삭제 시 |
 | `bsFixedFee` | `{ pc: 5280000, mo: 37950000 }` — 브랜드검색 기간 전체 정액료(KRW) | 〃 |
 | `keywordMap` | `[{ category, ko, en }]` — KO→EN 매핑 (기본 315행) | 사용자가 삭제/교체 시 |
@@ -430,6 +470,8 @@ CPM = Total Spend / Total Impression × 1000
 | R6 | 환율 | 월별 입력, 해당 월 데이터에만 적용 |
 | R7 | Ad Group 분류 | Raw `광고그룹` 기준, 4개 표준값으로 정규화. 샘플 8개 그룹 전부 자동 추론 성공 |
 | R8 | Campaign Period / Budget / 환율 | **툴의 Settings 화면에서 입력** (U1~U4). 미입력 시 생성 차단 |
+| R9 | 범용화 | Client / Campaign Name 입력 기반으로 제목·파일명·Campaign Information을 동적 생성. 코드에 브랜드명·캠페인명 하드코딩 없음 (검증 스크립트가 매 실행마다 확인) |
+| R10 | Layout Offset | 전 시트 A열·1행 공백, Content는 B2 시작 |
 
 ### 미해결
 

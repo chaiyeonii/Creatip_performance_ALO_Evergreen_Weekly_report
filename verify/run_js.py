@@ -40,8 +40,10 @@ var kRes = step('ingest keyword', function(){ return ingest(splitCsv(KW_CSV),   
 
 S.rawDaily   = dRes.rows;
 S.rawKeyword = kRes.rows;
-S.campaign = { start:'2026-07-07', end:'2026-08-06', through:'2026-08-06',
-               budgetBS:50000000, budgetPL:30000000, plCampaign:'Evergreen_PPC' };
+S.campaign = { client:'FIGS', name:'Always-on',
+               start:'2026-07-07', end:'2026-08-06', through:'2026-08-06',
+               budgetBS:50000000, budgetPL:30000000, agencyFee:4000000,
+               plCampaign:'Evergreen_PPC' };
 S.bsFixedFee = { pc:5280000, mo:37950000 };
 S.fxRates    = { '2026-07':1385, '2026-08':1372 };
 S.meta.dataThrough = '2026-08-06';
@@ -63,6 +65,8 @@ var SUMMARY = {
   missingFx: M.missingFx,
   budgetBS: M.budgetBS, budgetPL: M.budgetPL,
   validationErrors: validate().errs,
+  titles: reportTitles(),
+  prefix: reportPrefix(),
   groupDays: (function(){ var o={}; for(var i=0;i<GROUPS.length;i++) o[GROUPS[i]] = M.plGroup[GROUPS[i]].length; return o; })(),
   bsSpendUsd: M.bsDaily.reduce(function(a,d){ return a + d.PC.cost + d.MO.cost; }, 0),
   plSpendUsd: M.plDaily.reduce(function(a,d){ return a + d.PC.cost + d.MO.cost; }, 0),

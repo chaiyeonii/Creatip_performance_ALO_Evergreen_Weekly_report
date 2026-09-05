@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALO Evergreen Weekly Report Generator</title>
+<title>Weekly Report Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
@@ -73,8 +73,8 @@
 </head>
 <body>
 <header>
-  <h1>ALO Evergreen Weekly Report Generator</h1>
-  <p>네이버 검색광고 Raw Data → 클라이언트 제출용 5-Sheet Excel 리포트</p>
+  <h1>Weekly Report Generator</h1>
+  <p>네이버 검색광고 Raw Data → 클라이언트 제출용 5-Sheet Excel 리포트 · Client / Campaign 무관 범용</p>
 </header>
 
 <div class="wrap">
@@ -105,8 +105,8 @@
     <h2><span class="n">2</span> 캠페인 설정</h2>
     <p class="hint">입력값은 브라우저에 저장되어 다음 주차에 그대로 재사용됩니다.</p>
     <div class="grid g2">
-      <div><label>Client</label><input type="text" id="cClient" placeholder="ALO"></div>
-      <div><label>Campaign Name</label><input type="text" id="cName" placeholder="Evergreen SA Campaign"></div>
+      <div><label>Client <span style="color:var(--err)">*</span></label><input type="text" id="cClient" placeholder="예: ALO / FIGS"></div>
+      <div><label>Campaign Name <span style="color:var(--err)">*</span></label><input type="text" id="cName" placeholder="예: Evergreen / Always-on"></div>
     </div>
     <div class="grid g4" style="margin-top:12px">
       <div><label>Campaign Start</label><input type="date" id="cStart"></div>
@@ -126,6 +126,7 @@
     <p class="hint" style="margin:10px 0 0 0">
       정액료는 <b>리포팅 기간 전체 금액</b>입니다. Budget은 KRW로 입력하면 환율로 USD 변환되어 표시됩니다.
     </p>
+    <div id="titlePreview"></div>
   </div>
 
   <!-- 3. FX -->
@@ -177,11 +178,12 @@
 
 <script>
 /* ============================================================
-   ALO Evergreen Weekly Report Generator
+   Weekly Report Generator — client/campaign agnostic
    Single-file tool. All state persists in localStorage.
    ============================================================ */
 
-const STORE_KEY = 'alo_evergreen_report_v1';
+const STORE_KEY = 'client_report_generator_v1';
+const LEGACY_KEY = 'alo_evergreen_report_v1';
 const GROUPS = ['Branded','Shoes','Competitors','Generic'];
 const DEVICES = ['PC','MO'];
 
@@ -506,7 +508,7 @@ Branded,알로웰니스클럽,ALO wellness club`;
 /* ---------- state ---------- */
 function blankState(){
   return {
-    campaign : { client:'ALO', name:'Evergreen SA Campaign', start:'', end:'', through:'',
+    campaign : { client:'', name:'', start:'', end:'', through:'',
                  budgetBS:null, budgetPL:null, agencyFee:null, plCampaign:'' },
     bsFixedFee : { pc:null, mo:null },
     fxRates : {},
@@ -526,7 +528,8 @@ function save(){
 }
 function load(){
   try{
-    const raw = localStorage.getItem(STORE_KEY);
+    let raw = localStorage.getItem(STORE_KEY);
+    if(!raw){ raw = localStorage.getItem(LEGACY_KEY); }   // carry over pre-rename settings
     if(!raw) return;
     const o = JSON.parse(raw);
     S = Object.assign(blankState(), o);
@@ -842,7 +845,11 @@ function buildModel(){
 /* ============================================================
    EXCEL BUILDER
    ============================================================ */
-const NAVY='FF1F3864', HDR2='FF2F4F8F', BAND='FFD9E2F3', SUBTOT='FFF2F2F2', TOTROW='FFDCE3F0';
+/* ---------- layout origin: column A and row 1 are left empty on every sheet ---------- */
+const C0 = 2;   // first content column (B)
+const R0 = 2;   // first content row    (2)
+
+const NAVY='FF1F3864', BAND='FFD9E2F3', SUBTOT='FFF2F2F2', TOTROW='FFDCE3F0';
 const BLK  = { total:'FF1F3864', pc:'FF2E5395', mo:'FF4472C4' };   // device-block header colours
 const BLK2 = { total:'FF35548C', pc:'FF4A6FAE', mo:'FF6A8FD4' };   // sub-header, one tint lighter
 const GROUP_FILL = { Branded:'FFDDEBF7', Shoes:'FFE2EFDA', Competitors:'FFFCE4D6', Generic:'FFFFF2CC' };
@@ -852,6 +859,24 @@ const MED ={style:'medium',color:{argb:'FF1F3864'}};
 const BOX={top:THIN,left:THIN,bottom:THIN,right:THIN};
 
 function colL(n){ let s=''; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
+const L = colL;
+
+/* ---------- report naming (never hardcode a client or campaign) ---------- */
+function reportPrefix(){
+  const c=(S.campaign.client||'').trim(), n=(S.campaign.name||'').trim();
+  if(c && n) return c+'_'+n;
+  return c || n || 'Report';
+}
+function reportTitles(){
+  const p = reportPrefix();
+  return {
+    overall : p+' AD Summary',
+    bs      : p+' Brand Search Report',
+    bsk     : p+' Brand Search Keyword Report',
+    pl      : p+' Powerlink Report',
+    plk     : p+' Powerlink Keyword Report'
+  };
+}
 
 function styleHeader(ws,row,c1,c2,fill){
   for(let c=c1;c<=c2;c++){
@@ -862,42 +887,44 @@ function styleHeader(ws,row,c1,c2,fill){
     cell.border=BOX;
   }
 }
-function titleBand(ws,row,c1,c2,text,fill,color){
+function titleBand(ws,row,c1,c2,text,fill,color,size){
   ws.mergeCells(row,c1,row,c2);
   const cell=ws.getCell(row,c1);
   cell.value=text;
   cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill||BAND}};
-  cell.font={bold:true,size:11,color:{argb:color||'FF1F3864'}};
+  cell.font={bold:true,size:size||11,color:{argb:color||'FF1F3864'}};
   cell.alignment={horizontal:'left',vertical:'middle',indent:1};
   cell.border=BOX;
-  ws.getRow(row).height=20;
+  ws.getRow(row).height=size?24:20;
 }
 
 /* Vertical separators that make Total | PC | MO read as three distinct blocks. */
 function blockBorder(c,extra){
   const b={top:THIN,left:THIN,bottom:THIN,right:THIN};
-  if(c===1||c===2||c===6||c===10) b.left=MED;
-  if(c===1||c===5||c===9||c===13) b.right=MED;
+  const rel=c-C0;
+  if(rel===0||rel===1||rel===5||rel===9)  b.left=MED;
+  if(rel===0||rel===4||rel===8||rel===12) b.right=MED;
   return extra?Object.assign(b,extra):b;
 }
 
 /* --- 13-column daily block: Date + Total/PC/MO x (Imp,Click,Cost,CTR)
        TOTAL row sits directly under the header, then the dates.        --- */
 function dailyBlock(ws, startRow, label, rows){
+  const cD=C0, cT=C0+1, cP=C0+5, cM=C0+9, cEnd=C0+12;
   const r1=startRow, r2=startRow+1;
-  ws.mergeCells(r1,1,r2,1); ws.getCell(r1,1).value='Date';
-  const blocks=[[label+'_Total',2,'total'],[label+'_PC',6,'pc'],[label+'_MO',10,'mo']];
+  ws.mergeCells(r1,cD,r2,cD); ws.getCell(r1,cD).value='Date';
+  const blocks=[[label+'_Total',cT,'total'],[label+'_PC',cP,'pc'],[label+'_MO',cM,'mo']];
   for(const b of blocks){ ws.mergeCells(r1,b[1],r1,b[1]+3); ws.getCell(r1,b[1]).value=b[0]; }
   ['Imp','Click','Cost','CTR'].forEach((h,i)=>{
     for(const b of blocks) ws.getCell(r2,b[1]+i).value=h;
   });
   for(const row of [r1,r2]){
     const pal = row===r1?BLK:BLK2;
-    ws.getCell(row,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:BLK.total}};
+    ws.getCell(row,cD).fill={type:'pattern',pattern:'solid',fgColor:{argb:BLK.total}};
     for(const b of blocks)
       for(let i=0;i<4;i++)
         ws.getCell(row,b[1]+i).fill={type:'pattern',pattern:'solid',fgColor:{argb:pal[b[2]]}};
-    for(let c=1;c<=13;c++){
+    for(let c=cD;c<=cEnd;c++){
       const cell=ws.getCell(row,c);
       cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10.5};
       cell.alignment={horizontal:'center',vertical:'middle'};
@@ -909,38 +936,37 @@ function dailyBlock(ws, startRow, label, rows){
   const tr=r2+1, first=tr+1;
   let r=first;
   for(const d of rows){
-    ws.getCell(r,1).value=d.date;
-    ws.getCell(r,6).value=d.PC.imp;  ws.getCell(r,7).value=d.PC.click;  ws.getCell(r,8).value=d.PC.cost;
-    ws.getCell(r,10).value=d.MO.imp; ws.getCell(r,11).value=d.MO.click; ws.getCell(r,12).value=d.MO.cost;
-    ws.getCell(r,2).value={formula:`F${r}+J${r}`};
-    ws.getCell(r,3).value={formula:`G${r}+K${r}`};
-    ws.getCell(r,4).value={formula:`H${r}+L${r}`};
-    ws.getCell(r,5).value ={formula:`IFERROR(C${r}/B${r},0)`};
-    ws.getCell(r,9).value ={formula:`IFERROR(G${r}/F${r},0)`};
-    ws.getCell(r,13).value={formula:`IFERROR(K${r}/J${r},0)`};
+    ws.getCell(r,cD).value=d.date;
+    ws.getCell(r,cP).value=d.PC.imp;   ws.getCell(r,cP+1).value=d.PC.click;  ws.getCell(r,cP+2).value=d.PC.cost;
+    ws.getCell(r,cM).value=d.MO.imp;   ws.getCell(r,cM+1).value=d.MO.click;  ws.getCell(r,cM+2).value=d.MO.cost;
+    for(let i=0;i<3;i++)
+      ws.getCell(r,cT+i).value={formula:`${L(cP+i)}${r}+${L(cM+i)}${r}`};
+    ws.getCell(r,cT+3).value={formula:`IFERROR(${L(cT+1)}${r}/${L(cT)}${r},0)`};
+    ws.getCell(r,cP+3).value={formula:`IFERROR(${L(cP+1)}${r}/${L(cP)}${r},0)`};
+    ws.getCell(r,cM+3).value={formula:`IFERROR(${L(cM+1)}${r}/${L(cM)}${r},0)`};
     r++;
   }
   const last=r-1;
 
-  ws.getCell(tr,1).value='TOTAL';
+  ws.getCell(tr,cD).value='TOTAL';
   if(rows.length){
-    for(const c of [2,3,4,6,7,8,10,11,12])
-      ws.getCell(tr,c).value={formula:`SUM(${colL(c)}${first}:${colL(c)}${last})`};
-    ws.getCell(tr,5).value ={formula:`IFERROR(C${tr}/B${tr},0)`};
-    ws.getCell(tr,9).value ={formula:`IFERROR(G${tr}/F${tr},0)`};
-    ws.getCell(tr,13).value={formula:`IFERROR(K${tr}/J${tr},0)`};
+    for(const base of [cT,cP,cM])
+      for(let i=0;i<3;i++)
+        ws.getCell(tr,base+i).value={formula:`SUM(${L(base+i)}${first}:${L(base+i)}${last})`};
+    for(const base of [cT,cP,cM])
+      ws.getCell(tr,base+3).value={formula:`IFERROR(${L(base+1)}${tr}/${L(base)}${tr},0)`};
   }else{
-    ws.mergeCells(tr,2,tr,13);
-    ws.getCell(tr,2).value='No data';
-    ws.getCell(tr,2).alignment={horizontal:'center'};
+    ws.mergeCells(tr,cT,tr,cEnd);
+    ws.getCell(tr,cT).value='No data';
+    ws.getCell(tr,cT).alignment={horizontal:'center'};
   }
 
   for(let rr=tr; rr<=Math.max(last,tr); rr++){
-    for(let c=1;c<=13;c++){
+    for(let c=cD;c<=cEnd;c++){
       const cell=ws.getCell(rr,c);
       cell.border=blockBorder(c);
-      if(c>=2){
-        const off=(c-2)%4;
+      if(c>=cT){
+        const off=(c-cT)%4;
         cell.numFmt = (off===0||off===1)?NF_INT : (off===2?NF_USD2:NF_PCT);
       }
       if(rr===tr){
@@ -949,86 +975,97 @@ function dailyBlock(ws, startRow, label, rows){
         cell.border=blockBorder(c,{bottom:MED});
       }
     }
-    ws.getCell(rr,1).alignment={horizontal:'center'};
+    ws.getCell(rr,cD).alignment={horizontal:'center'};
   }
   return { headerRow:r1, totalRow:tr, firstRow:first, lastRow:last, nextRow:Math.max(last,tr)+1 };
 }
 
-/* --- Overview block (10 cols) --- */
+/* --- Overview block (10 cols from C0) --- */
 function overviewBlock(ws,startRow,mediaName,budgetUsd,dailyTotalRow){
+  const cT=C0+1;   // Total block on the daily table
   const hdr=['Media Name','Campaign Period','Data Through Date','Budget','Spent',
              'Impression','Click','CTR','CPC','CPM'];
-  hdr.forEach((h,i)=> ws.getCell(startRow,i+1).value=h);
-  styleHeader(ws,startRow,1,10,NAVY);
+  hdr.forEach((h,i)=> ws.getCell(startRow,C0+i).value=h);
+  styleHeader(ws,startRow,C0,C0+9,NAVY);
   const r=startRow+1;
-  ws.getCell(r,1).value=mediaName;
-  ws.getCell(r,2).value=(S.campaign.start||'?')+' ~ '+(S.campaign.end||'?');
-  ws.getCell(r,3).value=S.campaign.through||S.meta.dataThrough||'';
-  ws.getCell(r,4).value=budgetUsd;
-  ws.getCell(r,5).value={formula:`D${dailyTotalRow}`};
-  ws.getCell(r,6).value={formula:`B${dailyTotalRow}`};
-  ws.getCell(r,7).value={formula:`C${dailyTotalRow}`};
-  ws.getCell(r,8).value={formula:`IFERROR(G${r}/F${r},0)`};
-  ws.getCell(r,9).value={formula:`IFERROR(E${r}/G${r},0)`};
-  ws.getCell(r,10).value={formula:`IFERROR(E${r}/F${r}*1000,0)`};
-  ws.getCell(r,4).numFmt=NF_USD0; ws.getCell(r,5).numFmt=NF_USD0;
-  ws.getCell(r,6).numFmt=NF_INT;  ws.getCell(r,7).numFmt=NF_INT;
-  ws.getCell(r,8).numFmt=NF_PCT;  ws.getCell(r,9).numFmt=NF_USD2; ws.getCell(r,10).numFmt=NF_USD2;
-  for(let c=1;c<=10;c++){
-    const cell=ws.getCell(r,c); cell.border=BOX; cell.font={bold:true};
-    if(c<=3) cell.alignment={horizontal:'center'};
+  ws.getCell(r,C0).value=mediaName;
+  ws.getCell(r,C0+1).value=(S.campaign.start||'?')+' ~ '+(S.campaign.end||'?');
+  ws.getCell(r,C0+2).value=S.campaign.through||S.meta.dataThrough||'';
+  ws.getCell(r,C0+3).value=budgetUsd;
+  ws.getCell(r,C0+4).value={formula:`${L(cT+2)}${dailyTotalRow}`};
+  ws.getCell(r,C0+5).value={formula:`${L(cT)}${dailyTotalRow}`};
+  ws.getCell(r,C0+6).value={formula:`${L(cT+1)}${dailyTotalRow}`};
+  ws.getCell(r,C0+7).value={formula:`IFERROR(${L(C0+6)}${r}/${L(C0+5)}${r},0)`};
+  ws.getCell(r,C0+8).value={formula:`IFERROR(${L(C0+4)}${r}/${L(C0+6)}${r},0)`};
+  ws.getCell(r,C0+9).value={formula:`IFERROR(${L(C0+4)}${r}/${L(C0+5)}${r}*1000,0)`};
+  ws.getCell(r,C0+3).numFmt=NF_USD0; ws.getCell(r,C0+4).numFmt=NF_USD0;
+  ws.getCell(r,C0+5).numFmt=NF_INT;  ws.getCell(r,C0+6).numFmt=NF_INT;
+  ws.getCell(r,C0+7).numFmt=NF_PCT;  ws.getCell(r,C0+8).numFmt=NF_USD2; ws.getCell(r,C0+9).numFmt=NF_USD2;
+  for(let i=0;i<10;i++){
+    const cell=ws.getCell(r,C0+i); cell.border=BOX; cell.font={bold:true};
+    if(i<=2) cell.alignment={horizontal:'center'};
   }
   ws.getRow(r).height=20;
   return { row:r, nextRow:r+1 };
 }
 
-/* --- keyword tables: PC = cols 1-5, spacer = col 6, MO = cols 7-11 --- */
-const MO_OFF = 6;   // first MO column
+/* --- keyword tables: PC = C0..C0+4, spacer = C0+5, MO = C0+6..C0+10 --- */
+const KW_PC=0, KW_MO=6;
 function keywordHeader(ws,row,label){
-  ws.mergeCells(row,1,row,5);  ws.getCell(row,1).value=label+'_PC';
-  ws.mergeCells(row,7,row,11); ws.getCell(row,7).value=label+'_MO';
-  styleHeader(ws,row,1,5,BLK.pc);
-  styleHeader(ws,row,7,11,BLK.mo);
+  ws.mergeCells(row,C0+KW_PC,row,C0+KW_PC+4); ws.getCell(row,C0+KW_PC).value=label+'_PC';
+  ws.mergeCells(row,C0+KW_MO,row,C0+KW_MO+4); ws.getCell(row,C0+KW_MO).value=label+'_MO';
+  styleHeader(ws,row,C0+KW_PC,C0+KW_PC+4,BLK.pc);
+  styleHeader(ws,row,C0+KW_MO,C0+KW_MO+4,BLK.mo);
   const r2=row+1;
   ['Keyword (EN)','Keyword (KO)','Imp','Click','CTR'].forEach((h,i)=>{
-    ws.getCell(r2,i+1).value=h; ws.getCell(r2,i+7).value=h;
+    ws.getCell(r2,C0+KW_PC+i).value=h; ws.getCell(r2,C0+KW_MO+i).value=h;
   });
-  styleHeader(ws,r2,1,5,BLK2.pc);
-  styleHeader(ws,r2,7,11,BLK2.mo);
+  styleHeader(ws,r2,C0+KW_PC,C0+KW_PC+4,BLK2.pc);
+  styleHeader(ws,r2,C0+KW_MO,C0+KW_MO+4,BLK2.mo);
   return r2+1;
 }
+function kwCols(){
+  const out=[];
+  for(const b of [KW_PC,KW_MO]) for(let i=0;i<5;i++) out.push(C0+b+i);
+  return out;
+}
 function kwFmt(cell,c){
-  if(c===3||c===4||c===9||c===10) cell.numFmt=NF_INT;
-  if(c===5||c===11) cell.numFmt=NF_PCT;
+  const rel=(c-C0-KW_PC)%KW_MO;   // 0..4 within each block
+  if(rel===2||rel===3) cell.numFmt=NF_INT;
+  if(rel===4) cell.numFmt=NF_PCT;
 }
 function keywordRows(ws,startRow,pcList,moList){
   const n=Math.max(pcList.length,moList.length);
+  const cols=kwCols();
   let r=startRow;
   for(let i=0;i<n;i++){
     const p=pcList[i], m=moList[i];
-    if(p){ ws.getCell(r,1).value=p.en; ws.getCell(r,2).value=p.ko;
-           ws.getCell(r,3).value=p.imp; ws.getCell(r,4).value=p.click;
-           ws.getCell(r,5).value={formula:`IFERROR(D${r}/C${r},0)`}; }
-    if(m){ ws.getCell(r,7).value=m.en; ws.getCell(r,8).value=m.ko;
-           ws.getCell(r,9).value=m.imp; ws.getCell(r,10).value=m.click;
-           ws.getCell(r,11).value={formula:`IFERROR(J${r}/I${r},0)`}; }
-    for(const c of [1,2,3,4,5,7,8,9,10,11]){
-      const cell=ws.getCell(r,c);
-      cell.border=BOX; kwFmt(cell,c);
+    if(p){
+      const b=C0+KW_PC;
+      ws.getCell(r,b).value=p.en;   ws.getCell(r,b+1).value=p.ko;
+      ws.getCell(r,b+2).value=p.imp; ws.getCell(r,b+3).value=p.click;
+      ws.getCell(r,b+4).value={formula:`IFERROR(${L(b+3)}${r}/${L(b+2)}${r},0)`};
     }
+    if(m){
+      const b=C0+KW_MO;
+      ws.getCell(r,b).value=m.en;   ws.getCell(r,b+1).value=m.ko;
+      ws.getCell(r,b+2).value=m.imp; ws.getCell(r,b+3).value=m.click;
+      ws.getCell(r,b+4).value={formula:`IFERROR(${L(b+3)}${r}/${L(b+2)}${r},0)`};
+    }
+    for(const c of cols){ const cell=ws.getCell(r,c); cell.border=BOX; kwFmt(cell,c); }
     r++;
   }
   return { firstRow:startRow, lastRow:r-1, nextRow:r, count:n };
 }
 function keywordTotalRow(ws,r,label,first,last,hasRows,dark){
-  ws.getCell(r,1).value=label;  ws.mergeCells(r,1,r,2);
-  ws.getCell(r,7).value=label;  ws.mergeCells(r,7,r,8);
-  if(hasRows){
-    for(const c of [3,4,9,10]) ws.getCell(r,c).value={formula:`SUM(${colL(c)}${first}:${colL(c)}${last})`};
-    ws.getCell(r,5).value ={formula:`IFERROR(D${r}/C${r},0)`};
-    ws.getCell(r,11).value={formula:`IFERROR(J${r}/I${r},0)`};
+  for(const b of [C0+KW_PC,C0+KW_MO]){
+    ws.getCell(r,b).value=label; ws.mergeCells(r,b,r,b+1);
+    if(hasRows){
+      for(let i=2;i<=3;i++) ws.getCell(r,b+i).value={formula:`SUM(${L(b+i)}${first}:${L(b+i)}${last})`};
+      ws.getCell(r,b+4).value={formula:`IFERROR(${L(b+3)}${r}/${L(b+2)}${r},0)`};
+    }
   }
-  for(const c of [1,2,3,4,5,7,8,9,10,11]){
+  for(const c of kwCols()){
     const cell=ws.getCell(r,c);
     cell.font={bold:true,color:{argb:dark?'FFFFFFFF':'FF1F3864'}};
     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:dark?NAVY:TOTROW}};
@@ -1038,78 +1075,85 @@ function keywordTotalRow(ws,r,label,first,last,hasRows,dark){
   return r+1;
 }
 
-function setWidths(ws,arr){ arr.forEach((w,i)=> ws.getColumn(i+1).width=w); }
+/* column A stays a narrow empty gutter on every sheet */
+function setWidths(ws,arr){
+  ws.getColumn(1).width=2.4;
+  arr.forEach((w,i)=> ws.getColumn(i+C0).width=w);
+  ws.getRow(1).height=9;
+}
 
 async function buildWorkbook(M){
   const wb = new ExcelJS.Workbook();
-  wb.creator='ALO Evergreen Weekly Report Generator';
+  wb.creator='Weekly Report Generator';
   wb.created=new Date();
 
+  const T = reportTitles();
   const wsOverall = wb.addWorksheet('Overall');
   const wsBS      = wb.addWorksheet('Brand Search');
   const wsBSK     = wb.addWorksheet('Brand Search Keywords');
   const wsPL      = wb.addWorksheet('Powerlink');
   const wsPLK     = wb.addWorksheet('Powerlink Keywords');
   const period    = (S.campaign.start||'?')+' ~ '+(S.campaign.end||'?');
+  const cEnd13 = C0+12, cEnd10 = C0+9, cEnd11 = C0+10;
 
   /* ================= Sheet 2: Brand Search ================= */
   setWidths(wsBS,[12,11,10,12,9,11,10,12,9,11,10,12,9]);
-  titleBand(wsBS,1,1,13,'Brand Search',NAVY,'FFFFFFFF');
-  titleBand(wsBS,3,1,10,'Overview');
-  const bsBlk = dailyBlock(wsBS,8,'Brand Search',M.bsDaily);
-  titleBand(wsBS,7,1,13,'Daily Breakdown');
-  const bsOv = overviewBlock(wsBS,4,'Brand Search',M.budgetBS,bsBlk.totalRow);
-  wsBS.views=[{state:'frozen',xSplit:1,ySplit:bsBlk.totalRow}];
+  titleBand(wsBS,R0,C0,cEnd13,T.bs,NAVY,'FFFFFFFF',13);
+  titleBand(wsBS,R0+2,C0,cEnd10,'Overview');
+  const bsBlk = dailyBlock(wsBS,R0+7,'Brand Search',M.bsDaily);
+  titleBand(wsBS,R0+6,C0,cEnd13,'Daily Breakdown');
+  const bsOv = overviewBlock(wsBS,R0+3,'Brand Search',M.budgetBS,bsBlk.totalRow);
+  wsBS.views=[{state:'frozen',xSplit:C0,ySplit:bsBlk.totalRow}];
 
   /* ================= Sheet 3: Brand Search Keywords ================= */
   setWidths(wsBSK,[26,20,11,10,10, 3, 26,20,11,10,10]);
-  titleBand(wsBSK,1,1,11,'Brand Search Keywords',NAVY,'FFFFFFFF');
-  titleBand(wsBSK,3,1,11,'Keyword Breakdown by Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
-  const bsKrStart = keywordHeader(wsBSK,4,'Brand Search');
+  titleBand(wsBSK,R0,C0,cEnd11,T.bsk,NAVY,'FFFFFFFF',13);
+  titleBand(wsBSK,R0+2,C0,cEnd11,'Keyword Breakdown by Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
+  const bsKrStart = keywordHeader(wsBSK,R0+3,'Brand Search');
   const bsPC = M.bsKeywords.filter(k=>k.device==='PC');
   const bsMO = M.bsKeywords.filter(k=>k.device==='MO');
   const bsKb = keywordRows(wsBSK,bsKrStart,bsPC,bsMO);
   keywordTotalRow(wsBSK,bsKb.nextRow,'TOTAL',bsKb.firstRow,bsKb.lastRow,bsKb.count>0,true);
-  wsBSK.views=[{state:'frozen',ySplit:5}];
+  wsBSK.views=[{state:'frozen',ySplit:R0+4}];
 
   /* ================= Sheet 4: Powerlink ================= */
   setWidths(wsPL,[12,11,10,12,9,11,10,12,9,11,10,12,9]);
-  titleBand(wsPL,1,1,13,'Powerlink',NAVY,'FFFFFFFF');
-  titleBand(wsPL,3,1,10,'Overview');
-  const plBlk = dailyBlock(wsPL,8,'Powerlink',M.plDaily);
-  titleBand(wsPL,7,1,13,'Daily Breakdown');
-  overviewBlock(wsPL,4,'Powerlink',M.budgetPL,plBlk.totalRow);
+  titleBand(wsPL,R0,C0,cEnd13,T.pl,NAVY,'FFFFFFFF',13);
+  titleBand(wsPL,R0+2,C0,cEnd10,'Overview');
+  const plBlk = dailyBlock(wsPL,R0+7,'Powerlink',M.plDaily);
+  titleBand(wsPL,R0+6,C0,cEnd13,'Daily Breakdown');
+  overviewBlock(wsPL,R0+3,'Powerlink',M.budgetPL,plBlk.totalRow);
 
   let pr = plBlk.nextRow+1;
-  titleBand(wsPL,pr,1,13,'Daily Breakdown by Keyword Group'); pr+=2;
+  titleBand(wsPL,pr,C0,cEnd13,'Daily Breakdown by Keyword Group'); pr+=2;
   const groupTotalRows=[];
   for(const g of GROUPS){
-    titleBand(wsPL,pr,1,13,g,GROUP_FILL[g]); pr++;
+    titleBand(wsPL,pr,C0,cEnd13,g,GROUP_FILL[g]); pr++;
     const blk = dailyBlock(wsPL,pr,g,M.plGroup[g]||[]);
     if((M.plGroup[g]||[]).length) groupTotalRows.push(blk.totalRow);
     pr = blk.nextRow+1;
   }
   if(groupTotalRows.length) ws_check(wsPL,pr,groupTotalRows,plBlk.totalRow);
-  wsPL.views=[{state:'frozen',xSplit:1,ySplit:plBlk.totalRow}];
+  wsPL.views=[{state:'frozen',xSplit:C0,ySplit:plBlk.totalRow}];
 
   /* ================= Sheet 5: Powerlink Keywords ================= */
   setWidths(wsPLK,[26,20,11,10,10, 3, 26,20,11,10,10]);
-  titleBand(wsPLK,1,1,11,'Powerlink Keywords',NAVY,'FFFFFFFF');
-  titleBand(wsPLK,3,1,11,'Keyword Breakdown by Ad Group & Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
-  let kr = keywordHeader(wsPLK,4,'Powerlink');
+  titleBand(wsPLK,R0,C0,cEnd11,T.plk,NAVY,'FFFFFFFF',13);
+  titleBand(wsPLK,R0+2,C0,cEnd11,'Keyword Breakdown by Ad Group & Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
+  let kr = keywordHeader(wsPLK,R0+3,'Powerlink');
   const subFirst=[], subLast=[];
   for(const g of GROUPS){
-    titleBand(wsPLK,kr,1,5,g,GROUP_FILL[g]);
-    titleBand(wsPLK,kr,7,11,g,GROUP_FILL[g]);
+    titleBand(wsPLK,kr,C0+KW_PC,C0+KW_PC+4,g,GROUP_FILL[g]);
+    titleBand(wsPLK,kr,C0+KW_MO,C0+KW_MO+4,g,GROUP_FILL[g]);
     kr++;
     const pc = M.plKeywords.filter(k=>k.group===g && k.device==='PC');
     const mo = M.plKeywords.filter(k=>k.group===g && k.device==='MO');
     if(!pc.length && !mo.length){
-      for(const c1 of [1,7]){
-        wsPLK.mergeCells(kr,c1,kr,c1+4);
-        wsPLK.getCell(kr,c1).value='No data';
-        wsPLK.getCell(kr,c1).alignment={horizontal:'center'};
-        wsPLK.getCell(kr,c1).border=BOX;
+      for(const b of [C0+KW_PC,C0+KW_MO]){
+        wsPLK.mergeCells(kr,b,kr,b+4);
+        wsPLK.getCell(kr,b).value='No data';
+        wsPLK.getCell(kr,b).alignment={horizontal:'center'};
+        wsPLK.getCell(kr,b).border=BOX;
       }
       kr+=2; continue;
     }
@@ -1120,15 +1164,15 @@ async function buildWorkbook(M){
   }
   if(subFirst.length){
     const gr=kr;
-    wsPLK.getCell(gr,1).value='GRAND TOTAL'; wsPLK.mergeCells(gr,1,gr,2);
-    wsPLK.getCell(gr,7).value='GRAND TOTAL'; wsPLK.mergeCells(gr,7,gr,8);
-    for(const c of [3,4,9,10]){
-      const parts = subFirst.map((f,i)=>`SUM(${colL(c)}${f}:${colL(c)}${subLast[i]})`);
-      wsPLK.getCell(gr,c).value={formula:parts.join('+')};
+    for(const b of [C0+KW_PC,C0+KW_MO]){
+      wsPLK.getCell(gr,b).value='GRAND TOTAL'; wsPLK.mergeCells(gr,b,gr,b+1);
+      for(let i=2;i<=3;i++){
+        const parts = subFirst.map((f,k)=>`SUM(${L(b+i)}${f}:${L(b+i)}${subLast[k]})`);
+        wsPLK.getCell(gr,b+i).value={formula:parts.join('+')};
+      }
+      wsPLK.getCell(gr,b+4).value={formula:`IFERROR(${L(b+3)}${gr}/${L(b+2)}${gr},0)`};
     }
-    wsPLK.getCell(gr,5).value ={formula:`IFERROR(D${gr}/C${gr},0)`};
-    wsPLK.getCell(gr,11).value={formula:`IFERROR(J${gr}/I${gr},0)`};
-    for(const c of [1,2,3,4,5,7,8,9,10,11]){
+    for(const c of kwCols()){
       const cell=wsPLK.getCell(gr,c);
       cell.font={bold:true,color:{argb:'FFFFFFFF'}};
       cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
@@ -1136,76 +1180,78 @@ async function buildWorkbook(M){
       kwFmt(cell,c);
     }
   }
-  wsPLK.views=[{state:'frozen',ySplit:5}];
+  wsPLK.views=[{state:'frozen',ySplit:R0+4}];
 
   /* ================= Sheet 1: Overall ================= */
   setWidths(wsOverall,[22,26,12,17,14,14,14,12,10,10,11]);
-  titleBand(wsOverall,1,1,11,'ALO — Evergreen SA Campaign Weekly Report',NAVY,'FFFFFFFF');
+  titleBand(wsOverall,R0,C0,cEnd11,T.overall,NAVY,'FFFFFFFF',13);
 
-  const MSH=13, MS_BS=14, MS_PL=15, MS_TOT=16;   // Media Summary rows
-  titleBand(wsOverall,3,1,11,'Campaign Information');
+  const MSH=R0+12, MS_BS=MSH+1, MS_PL=MSH+2, MS_TOT=MSH+3;
+  titleBand(wsOverall,R0+2,C0,cEnd11,'Campaign Information');
   const fxTxt = Object.keys(S.fxRates).sort()
       .map(m=>'1 USD = '+num(S.fxRates[m]).toLocaleString('en-US')+' KRW ('+m+')').join('   |   ');
   const info=[
-    ['Client',             S.campaign.client||'ALO',                    null],
-    ['Campaign',           S.campaign.name||'Evergreen SA Campaign',    null],
-    ['Period',             period,                                      null],
-    ['Total Spent',        {formula:`F${MS_TOT}`},                      NF_USD2],
-    ['Advertising Budget', {formula:`E${MS_TOT}`},                      NF_USD2],
-    ['Agency Fee',         M.agencyFee,                                 NF_USD2],
-    ['Exchange Rate',      fxTxt,                                       null]
+    ['Client',             (S.campaign.client||'').trim(),           null],
+    ['Campaign',           (S.campaign.name||'').trim(),             null],
+    ['Period',             period,                                   null],
+    ['Total Spent',        {formula:`${L(C0+5)}${MS_TOT}`},          NF_USD2],
+    ['Advertising Budget', {formula:`${L(C0+4)}${MS_TOT}`},          NF_USD2],
+    ['Agency Fee',         M.agencyFee,                              NF_USD2],
+    ['Exchange Rate',      fxTxt,                                    null]
   ];
   info.forEach((it,i)=>{
-    const r=4+i;
-    wsOverall.getCell(r,1).value=it[0];
-    wsOverall.getCell(r,1).font={bold:true,size:10.5};
-    wsOverall.getCell(r,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
-    wsOverall.getCell(r,1).alignment={vertical:'middle',indent:1};
-    wsOverall.mergeCells(r,2,r,4);
-    wsOverall.getCell(r,2).value=it[1];
-    if(it[2]) wsOverall.getCell(r,2).numFmt=it[2];
-    wsOverall.getCell(r,2).alignment={horizontal:it[2]?'right':'left',vertical:'middle',indent:1};
-    for(let c=1;c<=4;c++) wsOverall.getCell(r,c).border=BOX;
+    const r=R0+3+i;
+    wsOverall.getCell(r,C0).value=it[0];
+    wsOverall.getCell(r,C0).font={bold:true,size:10.5};
+    wsOverall.getCell(r,C0).fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+    wsOverall.getCell(r,C0).alignment={vertical:'middle',indent:1};
+    wsOverall.mergeCells(r,C0+1,r,C0+3);
+    wsOverall.getCell(r,C0+1).value=it[1];
+    if(it[2]) wsOverall.getCell(r,C0+1).numFmt=it[2];
+    wsOverall.getCell(r,C0+1).alignment={horizontal:it[2]?'right':'left',vertical:'middle',indent:1};
+    for(let c=C0;c<=C0+3;c++) wsOverall.getCell(r,c).border=BOX;
     wsOverall.getRow(r).height=17;
   });
 
-  titleBand(wsOverall,MSH-1,1,11,'Media Summary');
+  titleBand(wsOverall,MSH-1,C0,cEnd11,'Media Summary');
   ['Campaign','Period','Media','Ad','Budget','Spent','Impression','Click','CTR','CPC','CPM']
-    .forEach((h,i)=> wsOverall.getCell(MSH,i+1).value=h);
-  styleHeader(wsOverall,MSH,1,11,NAVY);
+    .forEach((h,i)=> wsOverall.getCell(MSH,C0+i).value=h);
+  styleHeader(wsOverall,MSH,C0,cEnd11,NAVY);
 
   // repeated Campaign / Period / Media values are merged across the two media rows
-  wsOverall.mergeCells(MS_BS,1,MS_PL,1); wsOverall.getCell(MS_BS,1).value=S.campaign.name||'Evergreen';
-  wsOverall.mergeCells(MS_BS,2,MS_PL,2); wsOverall.getCell(MS_BS,2).value=period;
-  wsOverall.mergeCells(MS_BS,3,MS_PL,3); wsOverall.getCell(MS_BS,3).value='Naver';
+  wsOverall.mergeCells(MS_BS,C0,MS_PL,C0);   wsOverall.getCell(MS_BS,C0).value=(S.campaign.name||'').trim();
+  wsOverall.mergeCells(MS_BS,C0+1,MS_PL,C0+1); wsOverall.getCell(MS_BS,C0+1).value=period;
+  wsOverall.mergeCells(MS_BS,C0+2,MS_PL,C0+2); wsOverall.getCell(MS_BS,C0+2).value='Naver';
+  const ov=bsOv.row;
   const media=[[MS_BS,'Brand Search',"'Brand Search'!"],[MS_PL,'Powerlink',"'Powerlink'!"]];
   for(const m of media){
-    const r=m[0], ref=m[2], ov=bsOv.row;
-    wsOverall.getCell(r,4).value=m[1];
-    wsOverall.getCell(r,5).value={formula:`${ref}D${ov}`};
-    wsOverall.getCell(r,6).value={formula:`${ref}E${ov}`};
-    wsOverall.getCell(r,7).value={formula:`${ref}F${ov}`};
-    wsOverall.getCell(r,8).value={formula:`${ref}G${ov}`};
-    wsOverall.getCell(r,9).value ={formula:`IFERROR(H${r}/G${r},0)`};
-    wsOverall.getCell(r,10).value={formula:`IFERROR(F${r}/H${r},0)`};
-    wsOverall.getCell(r,11).value={formula:`IFERROR(F${r}/G${r}*1000,0)`};
+    const r=m[0], ref=m[2];
+    wsOverall.getCell(r,C0+3).value=m[1];
+    wsOverall.getCell(r,C0+4).value={formula:`${ref}${L(C0+3)}${ov}`};
+    wsOverall.getCell(r,C0+5).value={formula:`${ref}${L(C0+4)}${ov}`};
+    wsOverall.getCell(r,C0+6).value={formula:`${ref}${L(C0+5)}${ov}`};
+    wsOverall.getCell(r,C0+7).value={formula:`${ref}${L(C0+6)}${ov}`};
+    wsOverall.getCell(r,C0+8).value ={formula:`IFERROR(${L(C0+7)}${r}/${L(C0+6)}${r},0)`};
+    wsOverall.getCell(r,C0+9).value ={formula:`IFERROR(${L(C0+5)}${r}/${L(C0+7)}${r},0)`};
+    wsOverall.getCell(r,C0+10).value={formula:`IFERROR(${L(C0+5)}${r}/${L(C0+6)}${r}*1000,0)`};
   }
-  wsOverall.mergeCells(MS_TOT,1,MS_TOT,4);
-  wsOverall.getCell(MS_TOT,1).value='Total';
-  for(const c of [5,6,7,8]) wsOverall.getCell(MS_TOT,c).value={formula:`${colL(c)}${MS_BS}+${colL(c)}${MS_PL}`};
-  wsOverall.getCell(MS_TOT,9).value ={formula:`IFERROR(H${MS_TOT}/G${MS_TOT},0)`};
-  wsOverall.getCell(MS_TOT,10).value={formula:`IFERROR(F${MS_TOT}/H${MS_TOT},0)`};
-  wsOverall.getCell(MS_TOT,11).value={formula:`IFERROR(F${MS_TOT}/G${MS_TOT}*1000,0)`};
+  wsOverall.mergeCells(MS_TOT,C0,MS_TOT,C0+3);
+  wsOverall.getCell(MS_TOT,C0).value='Total';
+  for(let i=4;i<=7;i++)
+    wsOverall.getCell(MS_TOT,C0+i).value={formula:`${L(C0+i)}${MS_BS}+${L(C0+i)}${MS_PL}`};
+  wsOverall.getCell(MS_TOT,C0+8).value ={formula:`IFERROR(${L(C0+7)}${MS_TOT}/${L(C0+6)}${MS_TOT},0)`};
+  wsOverall.getCell(MS_TOT,C0+9).value ={formula:`IFERROR(${L(C0+5)}${MS_TOT}/${L(C0+7)}${MS_TOT},0)`};
+  wsOverall.getCell(MS_TOT,C0+10).value={formula:`IFERROR(${L(C0+5)}${MS_TOT}/${L(C0+6)}${MS_TOT}*1000,0)`};
 
   for(let r=MS_BS;r<=MS_TOT;r++){
-    for(let c=1;c<=11;c++){
-      const cell=wsOverall.getCell(r,c);
+    for(let i=0;i<=10;i++){
+      const c=C0+i, cell=wsOverall.getCell(r,c);
       cell.border=BOX;
-      if(c===5||c===6) cell.numFmt=NF_USD0;
-      if(c===7||c===8) cell.numFmt=NF_INT;
-      if(c===9)        cell.numFmt=NF_PCT;
-      if(c===10||c===11) cell.numFmt=NF_USD2;
-      if(c<=4) cell.alignment={horizontal:'center',vertical:'middle'};
+      if(i===4||i===5)  cell.numFmt=NF_USD0;
+      if(i===6||i===7)  cell.numFmt=NF_INT;
+      if(i===8)         cell.numFmt=NF_PCT;
+      if(i===9||i===10) cell.numFmt=NF_USD2;
+      if(i<=3) cell.alignment={horizontal:'center',vertical:'middle'};
       if(r===MS_TOT){
         cell.font={bold:true,color:{argb:'FFFFFFFF'}};
         cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
@@ -1218,18 +1264,18 @@ async function buildWorkbook(M){
   return wb;
 }
 function ws_check(ws,row,groupRows,allRow){
-  ws.getCell(row,1).value='Check: Σ Groups = Total';
-  const cols=[['B',2],['C',3],['D',4]];
-  for(const cc of cols){
-    const sum=groupRows.map(r=>cc[0]+r).join('+');
-    const dec=cc[0]==='D'?2:0;
-    ws.getCell(row,cc[1]).value={formula:`IF(ROUND(${sum}-${cc[0]}${allRow},${dec})=0,"OK","MISMATCH")`};
+  const cT=C0+1;
+  ws.getCell(row,C0).value='Check: Σ Groups = Total';
+  for(let i=0;i<3;i++){
+    const cl=L(cT+i);
+    const sum=groupRows.map(r=>cl+r).join('+');
+    ws.getCell(row,cT+i).value={formula:`IF(ROUND(${sum}-${cl}${allRow},${i===2?2:0})=0,"OK","MISMATCH")`};
   }
-  for(let c=1;c<=4;c++){
-    const cell=ws.getCell(row,c);
+  for(let i=0;i<4;i++){
+    const cell=ws.getCell(row,C0+i);
     cell.font={bold:true,italic:true,size:10};
     cell.border=BOX;
-    cell.alignment={horizontal:c===1?'left':'center'};
+    cell.alignment={horizontal:i===0?'left':'center'};
   }
 }
 
@@ -1344,6 +1390,19 @@ function renderStatus(){
     $('statusBox').innerHTML+='<div class="msg warn">저장 용량이 5MB에 근접했습니다. 이전 데이터를 삭제해 주세요.</div>';
 }
 
+function renderTitlePreview(){
+  const box=$('titlePreview'); if(!box) return;
+  const c=(S.campaign.client||'').trim(), n=(S.campaign.name||'').trim();
+  if(!c||!n){
+    box.innerHTML='<div class="msg warn">Client와 Campaign Name을 입력하면 각 시트 제목이 여기에 표시됩니다.</div>';
+    return;
+  }
+  const T=reportTitles();
+  box.innerHTML='<div class="msg ok"><b>생성될 시트 제목</b> (각 시트 B2)<br>'+
+    [['Overall',T.overall],['Brand Search',T.bs],['Brand Search Keywords',T.bsk],
+     ['Powerlink',T.pl],['Powerlink Keywords',T.plk]]
+    .map(x=>`<code>${esc(x[1])}</code> <span style="opacity:.6">— ${x[0]}</span>`).join('<br>')+'</div>';
+}
 function renderSettings(){
   $('cClient').value=S.campaign.client||'';
   $('cName').value=S.campaign.name||'';
@@ -1366,6 +1425,8 @@ function validate(){
   const errs=[], warns=[];
   if(!S.rawDaily.length) errs.push('일별 리포트를 업로드하세요.');
   if(!S.rawKeyword.length) errs.push('키워드 리포트를 업로드하세요.');
+  if(!(S.campaign.client||'').trim()) errs.push('Client를 입력하세요.');
+  if(!(S.campaign.name||'').trim()) errs.push('Campaign Name을 입력하세요.');
   if(!S.campaign.start||!S.campaign.end) errs.push('Campaign Period를 입력하세요.');
   if(!num(S.campaign.budgetBS)) errs.push('Brand Search Budget을 입력하세요.');
   if(!num(S.campaign.budgetPL)) errs.push('Powerlink Budget을 입력하세요.');
@@ -1404,7 +1465,7 @@ async function handleUpload(file,kind){
     S.meta.uploadedAt=new Date().toLocaleString('ko-KR');
     const camps=detectedPlCampaigns();
     if(!S.campaign.plCampaign||!camps.includes(S.campaign.plCampaign))
-      S.campaign.plCampaign=camps.includes('Evergreen_PPC')?'Evergreen_PPC':(camps[0]||'');
+      S.campaign.plCampaign=camps[0]||'';   // user picks from the detected list; never hardcode one
     autoMapAdGroups();
     save(); renderAll();
     let m=`<b>${esc(file.name)}</b> — ${res.rows.length.toLocaleString()}행 로드 완료.`;
@@ -1434,7 +1495,8 @@ async function generate(){
     if(M.missingFx.length) throw new Error('환율이 없는 월이 있습니다: '+M.missingFx.join(', '));
     const wb=await buildWorkbook(M);
     const buf=await wb.xlsx.writeBuffer();
-    const name=`ALO_Evergreen_Weekly_Report_${(M.through||'').replace(/-/g,'')}.xlsx`;
+    const slug=reportPrefix().replace(/[^\w.\-]+/g,'_').replace(/^_+|_+$/g,'') || 'Report';
+    const name=`${slug}_Weekly_Report_${(M.through||'').replace(/-/g,'')}.xlsx`;
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob); a.download=name; a.click();
@@ -1460,7 +1522,8 @@ async function generate(){
 
 /* ---------- render all ---------- */
 function renderAll(){
-  renderSettings(); renderFx(); renderAdGroups(); renderKeywordMap(); renderStatus(); refreshValidation();
+  renderSettings(); renderFx(); renderAdGroups(); renderKeywordMap(); renderStatus();
+  renderTitlePreview(); refreshValidation();
   $('lblDaily').textContent=S.meta.dailyFile||'클릭 또는 드래그 & 드롭';
   $('lblKw').textContent=S.meta.keywordFile||'클릭 또는 드래그 & 드롭';
   $('dropDaily').classList.toggle('has',!!S.meta.dailyFile);
@@ -1476,8 +1539,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   wireDrop('dropDaily','fileDaily','lblDaily','daily');
   wireDrop('dropKw','fileKw','lblKw','keyword');
 
-  bindSetting('cClient',v=>S.campaign.client=v);
-  bindSetting('cName',v=>S.campaign.name=v);
+  bindSetting('cClient',v=>{S.campaign.client=v; renderTitlePreview();});
+  bindSetting('cName',v=>{S.campaign.name=v; renderTitlePreview();});
   bindSetting('cAgency',v=>S.campaign.agencyFee=v===''?null:Number(v));
   bindSetting('cStart',v=>S.campaign.start=v);
   bindSetting('cEnd',v=>S.campaign.end=v);
@@ -1521,7 +1584,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   });
   $('btnClearAll').addEventListener('click',()=>{
     if(!confirm('모든 데이터와 설정을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
-    localStorage.removeItem(STORE_KEY); S=blankState(); renderAll();
+    localStorage.removeItem(STORE_KEY); localStorage.removeItem(LEGACY_KEY);
+    S=blankState(); renderAll();
     showMsg('uploadMsg','ok','전체 초기화되었습니다.');
   });
 
