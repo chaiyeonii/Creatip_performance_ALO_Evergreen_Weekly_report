@@ -41,7 +41,7 @@ var kRes = step('ingest keyword', function(){ return ingest(splitCsv(KW_CSV),   
 S.rawDaily   = dRes.rows;
 S.rawKeyword = kRes.rows;
 S.campaign = { client:'FIGS', name:'Always-on',
-               start:'2026-07-07', end:'2026-08-06', through:'2026-08-06',
+               start:'2026-07-07', end:'2026-08-20',   // deliberately past the raw data
                plCampaign:'Evergreen_PPC' };
 S.advBudget  = { currency:'USD', amount:46000 };
 S.budgetBS   = { currency:'KRW', amount:43230000 };
@@ -49,7 +49,6 @@ S.budgetPL   = 21169400;
 S.bsFixedFee = { pc:5280000, mo:37950000 };
 S.agencyFeeRate = 8;
 S.fx = { fromCountry:'KR', fromCurrency:'KRW', toCountry:'US', toCurrency:'USD', rate:1400 };
-S.meta.dataThrough = '2026-08-06';
 
 step('autoMapAdGroups', function(){ autoMapAdGroups(); });
 var M = step('buildModel', function(){ return buildModel(); });
@@ -69,23 +68,32 @@ var SUMMARY = {
   budgetBS: M.budgetBS, budgetPL: M.budgetPL,
   budgetTotal: M.budgetTotal, agencyRate: M.agencyRate,
   fxLabel: fxLabel(), period: fmtPeriod(), reportCurrency: reportCurrency(),
+  bsBudget: M.bsBudget, plBudget: M.plBudget,
+  bsBlank: M.bsDaily.filter(function(d){return !d.PC && !d.MO;}).map(function(d){return d.date;}),
+  bsPartial: M.bsDaily.filter(function(d){return (!d.PC)!==(!d.MO);}).map(function(d){return d.date;}),
   validationErrors: validate().errs,
   titles: reportTitles(),
   prefix: reportPrefix(),
   groupDays: (function(){ var o={}; for(var i=0;i<GROUPS.length;i++) o[GROUPS[i]] = M.plGroup[GROUPS[i]].length; return o; })(),
-  bsSpendUsd: M.bsDaily.reduce(function(a,d){ return a + d.PC.cost + d.MO.cost; }, 0),
-  plSpendUsd: M.plDaily.reduce(function(a,d){ return a + d.PC.cost + d.MO.cost; }, 0),
-  bsImp: M.bsDaily.reduce(function(a,d){ return a + d.PC.imp + d.MO.imp; }, 0),
-  plImp: M.plDaily.reduce(function(a,d){ return a + d.PC.imp + d.MO.imp; }, 0),
-  bsClick: M.bsDaily.reduce(function(a,d){ return a + d.PC.click + d.MO.click; }, 0),
-  plClick: M.plDaily.reduce(function(a,d){ return a + d.PC.click + d.MO.click; }, 0)
+  bsSpendUsd: M.bsDaily.reduce(function(a,d){ return a+d.totalSpent; },0),
+  plSpendUsd: M.plDaily.reduce(function(a,d){ return a+d.totalSpent; },0),
+  bsImp: M.bsDaily.reduce(function(a,d){ return a+d.totalImp; },0),
+  plImp: M.plDaily.reduce(function(a,d){ return a+d.totalImp; },0),
+  bsClick: M.bsDaily.reduce(function(a,d){ return a+d.totalClick; },0),
+  plClick: M.plDaily.reduce(function(a,d){ return a+d.totalClick; },0)
 };
 var WB_DUMP = null;
 buildWorkbook(M).then(function(wb){ WB_DUMP = dumpWorkbook(wb); })
                 .catch(function(e){ WB_DUMP = { error: e.message + ' | ' + (e.stack||'') }; });
 JSON.stringify(SUMMARY);
 """
-summary = json.loads(ctx.eval(setup))
+PRE  = "var SETUP_ERR=null;\ntry{\n"
+POST = ("\n}catch(e){ SETUP_ERR={__err:e.message,__stack:String(e.stack).slice(0,400)}; }\n"
+        "JSON.stringify(SETUP_ERR||SUMMARY);")
+raw = ctx.eval(PRE + setup + POST)
+summary = json.loads(raw)
+if "__err" in summary:
+    print("!! setup failed:", summary["__err"]); print(summary["__stack"]); sys.exit(1)
 print("\n--- JS execution log ---")
 for kind, name in summary["log"]:
     print(f"  [{kind}] {name}")
@@ -111,7 +119,11 @@ for k in ["dailyRows","kwRows","badDevice","detectedMonths","detectedAdGroups","
     print(f"  {k:18} = {summary[k]}")
 print(f"  {'BS':18} imp={summary['bsImp']:,} click={summary['bsClick']:,} spend=${summary['bsSpendUsd']:,.2f}")
 print(f"  {'PL':18} imp={summary['plImp']:,} click={summary['plClick']:,} spend=${summary['plSpendUsd']:,.2f}")
-print(f"  {'Budget USD':18} BS=${summary['budgetBS']:,.2f}  PL=${summary['budgetPL']:,.2f}")
+b, pl = summary['bsBudget'], summary['plBudget']
+print(f"  {'BS Budget':18} PC={b['pc']:,.2f}  MO={b['mo']:,.2f}  total={b['total']:,.2f}")
+print(f"  {'PL Budget':18} total={pl['total']:,.2f}")
+print(f"  {'blank days (BS)':18} {len(summary['bsBlank'])}  {summary['bsBlank'][:2]} .. {summary['bsBlank'][-2:]}")
+print(f"  {'one-device days':18} {len(summary['bsPartial'])}  {summary['bsPartial']}")
 
 print("\n--- workbook sheets ---")
 for n in wb["order"]:

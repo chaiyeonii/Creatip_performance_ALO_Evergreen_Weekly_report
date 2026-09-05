@@ -63,7 +63,8 @@ function dumpWorkbook(wb) {
       if (v && typeof v === 'object' && v.formula !== undefined) { v = v.formula; kind = 'f'; }
       cells.push([c.row, c.col, kind, v, c.numFmt]);
     }
-    out.sheets[n] = { cells: cells, merges: ws._merges, views: ws.views };
+    var cols={}; for(var c in ws._cols) if(ws._cols[c].width) cols[c]=ws._cols[c].width;
+    out.sheets[n] = { cells: cells, merges: ws._merges, views: ws.views, cols: cols };
   }
   return out;
 }

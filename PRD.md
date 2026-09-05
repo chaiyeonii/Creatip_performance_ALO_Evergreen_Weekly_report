@@ -35,10 +35,9 @@
 
 | # | 입력 항목 | 형식 | 설명 |
 |---|---|---|---|
-| U5 | Campaign Start / End | date picker | 전체 Campaign Period. 모든 시트의 Period 표기와 데이터 필터 기준 |
-| U6 | Data Through Date | date | 업로드 데이터의 최종일이 기본값. 필요 시 수동 override |
+| U5 | Campaign Start / End | date picker | 전체 Campaign Period. **리포트의 유일한 기간 기준**이며, Daily Breakdown의 날짜 행도 이 구간 전체를 생성한다 |
 | U7 | **Brand Search Budget** | Currency 드롭다운 + 금액 | Sheet 1 Media Summary와 Sheet 2 Overview의 Budget |
-| U8 | **Brand Search 정액료 · PC** | Raw Data 통화 (number) | 정액제 상품의 PC 금액. 통화 드롭다운 없이 Raw Data 통화 고정 |
+| U8 | **Brand Search 정액료 · PC** | Raw Data 통화 (number) | 정액제 상품의 PC 금액. 통화 드롭다운 없이 Raw Data 통화 고정. **Overview의 PC Budget으로도 쓰인다** |
 | U9 | **Brand Search 정액료 · MO** | Raw Data 통화 (number) | 〃 Mobile |
 | U10 | **Powerlink Budget** | Raw Data 통화 (number) | 통화 드롭다운 없이 Raw Data 통화 고정. Sheet 1 Media Summary와 Sheet 4 Overview의 Budget |
 | U11 | **Powerlink Campaign** | dropdown | 업로드된 Raw Data의 실제 캠페인 값에서 **자동 생성**. 선택한 캠페인의 데이터만 Powerlink 리포트에 포함 |
@@ -208,9 +207,21 @@ CPM = Total Spend / Total Impression × 1000
 
 ### 3.5 집계 기준 기간
 
-- Sheet 1 Overall, Sheet 2·4 Overview: **캠페인 시작일 ~ Data Through Date 누적**
-- Sheet 2·4 Daily Breakdown: 데이터가 존재하는 전체 일자, **오름차순(오래된 날짜 → 최신)**
-- Sheet 3·5 Keywords: **Reporting Period 전체 기간 합산**, 동일 키워드 다중 행은 먼저 합산
+- 기간 기준은 **Campaign Start ~ Campaign End 뿐**이다. `Data Through Date` 개념은 사용하지 않는다.
+- Sheet 1 Overall, Sheet 2·4 Overview: 캠페인 기간 내 **Raw Data가 존재하는 구간**의 누적
+- Sheet 2·4 Daily Breakdown: **Campaign Start부터 Campaign End까지 모든 날짜**를 오름차순으로 생성
+- Sheet 3·5 Keywords: Reporting Period 전체 기간 합산, 동일 키워드 다중 행은 먼저 합산
+
+**Missing Data와 Zero Performance 구분** — 두 상태는 반드시 다르게 표기한다.
+
+| 상태 | 표기 |
+|---|---|
+| 해당 날짜·디바이스의 Raw Data 행이 **없음** | **빈 셀** (값·수식 없음. 테두리와 서식만 유지) |
+| Raw Data 행은 있으나 성과가 **0** | `0` / `0.00%` 등 실제 값 |
+
+- 한 날짜에서 PC만 없고 MO는 있으면 → PC 4칸은 빈 셀, MO는 값, Total은 **MO만 합산**한다.
+- 양쪽 디바이스가 모두 없으면 → Total을 포함해 그 행의 모든 지표 셀이 빈 셀이다.
+- **TOTAL 행은 빈 셀을 0으로 세지 않는다.** `SUM()`이 빈 셀을 자동으로 무시하므로 Raw Data가 존재하는 구간만 집계된다.
 
 ### 3.6 Keyword 시트 생성 규칙
 
@@ -319,38 +330,52 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 
 ### Sheet 2 — Brand Search
 
-**영역 ① Overview** (상단 블록)
+**영역 ① Overview** — Device별 성과 요약. `PC → MO → Subtotal` 3행.
 
-| Media Name | Campaign Period | Data Through Date | Budget | Spend | Impression | Click | CTR | CPC | CPM |
+| Media | Ad | Device | Budget | Spent | Impression | Click | CTR | CPC | CPM |
 |---|---|---|---|---|---|---|---|---|---|
+| Naver SA | Brand Search | PC | | | | | | | |
+| 〃 | 〃 | MO | | | | | | | |
+| 〃 | 〃 | **Subtotal** | | | | | | | |
 
-- Budget/Spend/CPC/CPM = USD, CTR = %
-- Spend/Imp/Click은 아래 Daily Breakdown 합계 행을 `SUM()`으로 참조
-- CTR/CPC/CPM은 그 합계 셀을 기준으로 수식 재계산
+- `Media` / `Ad` 값은 3행에 걸쳐 **세로 병합**
+- Spent·Impression·Click은 Daily Breakdown TOTAL 행의 해당 디바이스 블록을 **수식 참조**
+- CTR·CPC·CPM은 각 행의 값 기준 **재계산**. Subtotal은 PC/MO 평균이 아니라 합계 기준으로 다시 계산한다
+  - `CTR = Subtotal Click / Subtotal Impression`
+  - `CPC = Subtotal Spent / Subtotal Click`
+  - `CPM = Subtotal Spent / Subtotal Impression × 1,000`
+- **Budget** — `PC Budget = 정액료 · PC`, `MO Budget = 정액료 · MO`, `Subtotal Budget = PC + MO` (수식). 환율로 리포트 통화 변환
+- Subtotal 행은 볼드 + 배경색 + 상단 굵은 테두리로 강조
+- Sheet 1 Media Summary는 이 **Subtotal 행**을 참조한다
+
+> **Budget 불일치 처리** — 사용자가 입력한 `Brand Search Budget`과 `정액료 PC + MO`의 합이 다르면 값을 임의로 고치지 않고, 생성 전에 툴 화면에 **불일치 경고**를 표시한다. Overview는 정액료 기준을 사용한다.
 
 **영역 ② Daily Breakdown** (2단 헤더)
 
-| Date | Brand Search_Total (Imp/Click/Cost/CTR) | Brand Search_PC (Imp/Click/Cost/CTR) | Brand Search_MO (Imp/Click/Cost/CTR) |
-|---|---|---|---|
+| Date | Brand Search_Total | | | | Brand Search_PC | | | | Brand Search_MO | | | |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| | Spent | Impression | Click | CTR | Spent | Impression | Click | CTR | Spent | Impression | Click | CTR |
 
-- 1행: `Date` / `Brand Search_Total` / `Brand Search_PC` / `Brand Search_MO` (각 4열 병합)
-- 2행: `Imp` / `Click` / `Cost` / `CTR` 반복
-- **3행 = TOTAL 행** — 헤더 바로 아래에 배치. Reporting Period 전체 집계이며 CTR은 `Total Click / Total Impression`으로 재계산. 볼드 + 배경색 + 하단 굵은 테두리로 날짜 행과 구분. Overview가 이 행을 참조
-- 4행부터 날짜별 데이터 (오름차순)
-- Total 열은 `=PC+MO` 수식, CTR은 `=IFERROR(Click/Imp,0)` 수식
-- Cost는 USD 변환값
+- **지표 순서는 `Spent → Impression → Click → CTR`.** `Cost`라는 표현은 사용하지 않는다
+- 1행: `Date` / `_Total` / `_PC` / `_MO` (각 4열 병합)
+- 2행: 지표명 반복
+- **3행 = TOTAL 행** — 헤더 바로 아래. Raw Data가 존재하는 구간만 집계하며 CTR은 `Total Click / Total Impression`으로 재계산
+- 4행부터 **Campaign Start ~ End 전체 날짜** (오름차순). Raw Data가 없는 날짜는 §3.5 규칙대로 빈 셀
+- Total 열은 존재하는 디바이스만 더하는 수식, CTR은 `=IFERROR(Click/Impression,0)`
+- Spent는 캠페인 단일 환율로 리포트 통화 변환
 
 **Device Group 시각적 구분** — 빈 열을 삽입하지 않고 테두리·헤더 색으로 분리한다.
 
 | 요소 | 규칙 |
 |---|---|
-| 세로 구분선 | `Date`(A), `Total`(B~E), `PC`(F~I), `MO`(J~M) 각 블록의 좌우 경계에 **medium 두께 세로선** |
-| 헤더 색 | Total `#1F3864` / PC `#2E5395` / MO `#4472C4` — 블록마다 다른 색조 |
-| 서브헤더 색 | 같은 계열 한 단계 밝은 톤 (Total `#35548C` / PC `#4A6FAE` / MO `#6A8FD4`) |
-| 그룹 헤더 | 각 4열 병합, 독립된 Header Block으로 보이게 구성 |
-| 틀 고정 | 헤더 2행 + TOTAL 행까지 고정 (스크롤해도 총계가 항상 보임) |
+| 세로 구분선 | `Date`, `Total`, `PC`, `MO` 각 블록의 좌우 경계에 **medium 두께 세로선** |
+| 헤더 색 | Total `#1F3864` / PC `#2E5395` / MO `#4472C4` |
+| 서브헤더 색 | 같은 계열 한 단계 밝은 톤 (`#35548C` / `#4A6FAE` / `#6A8FD4`) |
+| 그룹 헤더 | 각 4열 병합, 독립된 Header Block으로 구성 |
 
----
+**틀 고정** — **사용하지 않는다.** Date 열 고정도, 헤더 행 고정도 적용하지 않는다 (전 시트 공통).
+
+**열 너비** — 실제로 기록된 콘텐츠 길이를 추적해 자동 산정한다. 한글은 폭 1.75자로 계산하며, 최소 8 / 최대 26(Keyword 시트는 30)으로 클램프해 잘림도 과도한 확장도 막는다. Spacer 열과 A열은 최소값에서 제외한다.
 
 ### Sheet 3 — Brand Search Keywords
 
@@ -372,14 +397,15 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 
 ### Sheet 4 — Powerlink (3개 영역)
 
-**영역 ① Overview** — Sheet 2와 동일 구조 (Media Name = `Powerlink`)
+**영역 ① Overview** — Sheet 2와 동일한 `PC / MO / Subtotal` 구조 (Ad = `Powerlink`).
+단 Powerlink는 디바이스별 Budget 입력이 없으므로 **PC·MO Budget은 비우고 Subtotal Budget에만 Powerlink Budget**을 넣는다.
 
 **영역 ② Daily Breakdown** — 전체 Powerlink 성과
 
 | Date | Powerlink_Total (Imp/Click/Cost/CTR) | Powerlink_PC (Imp/Click/Cost/CTR) | Powerlink_MO (Imp/Click/Cost/CTR) |
 |---|---|---|---|
 
-- Sheet 2의 Daily Breakdown과 동일 규칙 (Total = PC+MO, CTR 재계산, 날짜 오름차순, Cost USD, 합계 행)
+- Sheet 2의 Daily Breakdown과 동일 규칙 — 지표 순서 `Spent / Impression / Click / CTR`, 캠페인 전 기간 날짜, 결측일 빈 셀, TOTAL 행 위치
 - Overview는 이 표의 합계 행을 참조
 
 **영역 ③ Daily Breakdown by Keyword Group**
@@ -463,11 +489,13 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | Report Title | 각 시트 B2에 `[Client]_[Campaign Name] …` 동적 생성. 브랜드명 하드코딩 금지 |
 | Keyword Spacer 열 | Keyword 시트는 PC(B~F) · **Spacer 1열 G(완전 공백, 너비 3)** · MO(H~L) 구성 |
 | TOTAL 행 위치 | Daily Breakdown은 헤더 바로 아래, Keyword 시트는 하단 |
+| 지표 순서 | Daily Breakdown은 `Spent / Impression / Click / CTR`. `Cost` 표현 미사용 |
+| 결측 데이터 | Raw Data가 없는 날짜는 **빈 셀**, 성과 0은 `0`. TOTAL 행은 빈 셀을 집계하지 않음 |
 | 그룹명 밴드 | 연한 배경색 + 볼드 + 좌측 정렬, 전체 폭 병합. 4개 그룹에 각각 다른 색조 적용 |
 | 소계/합계 행 | 상단 굵은 테두리 + 볼드 + 연회색 배경 |
 | 영역 구분 | 각 영역 사이 공백 행 + 영역 제목 밴드 (`Overview` / `Daily Breakdown` / `Daily Breakdown by Keyword Group`) |
-| Freeze Panes | Daily Breakdown: 헤더 2행 + Date 열 고정 / Keywords: 헤더 2행 고정 |
-| 열 너비 | 콘텐츠 기준 자동 조정 (Keyword 열은 최소 20) |
+| Freeze Panes | **사용하지 않는다.** 전 시트에서 틀 고정 없음 |
+| 열 너비 | 기록된 콘텐츠 길이 기준 자동 산정(한글 1.75자). 최소 8 / 최대 26(Keyword 시트 30). A열 2.4, Spacer 열 2.2 고정 |
 | 정렬 | 숫자 우측, 텍스트 좌측, 헤더 가운데 |
 | 검증 | 생성 시 ⓐ 그룹 합계 = 전체 합계 ⓑ Keyword 합계 = Overview Imp/Click 를 대조하고 불일치 시 경고 표시 |
 | 파일명 | `[Client]_[Campaign]_Weekly_Report_{DataThroughDate}.xlsx` (입력값에서 파일명 안전 문자로 치환) |
@@ -480,7 +508,7 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 
 | 키 | 내용 | 삭제 시점 |
 |---|---|---|
-| `campaign` | Client, Campaign Name, Campaign Period, Data Through Date, Powerlink Campaign | 사용자가 설정 초기화 시 |
+| `campaign` | Client, Campaign Name, Campaign Start/End, Powerlink Campaign | 사용자가 설정 초기화 시 |
 | `fx` | `{ fromCountry, fromCurrency, toCountry, toCurrency, rate }` — 캠페인 단일 환율 | 사용자가 수정·삭제 시 |
 | `advBudget` | `{ currency:'USD', amount:46000 }` — 캠페인 총 Advertising Budget | 〃 |
 | `budgetBS` | `{ currency:'KRW', amount:43230000 }` — Brand Search Budget | 〃 |
@@ -492,7 +520,7 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | `columnMap` | 자동 인식 실패 시 사용자가 지정한 컬럼 매핑 | 〃 |
 | `rawDaily` | 정규화된 일별 데이터 | 사용자가 삭제 또는 재업로드 시 |
 | `rawKeyword` | 정규화된 키워드 데이터 | 〃 |
-| `meta` | 마지막 업로드 파일명·업로드 시각·Data Through Date·마지막 생성 시각 | 〃 |
+| `meta` | 마지막 업로드 파일명·업로드 시각 | 〃 |
 
 **요구사항**
 - 원본 CSV 텍스트가 아닌 **정규화된 JSON**을 저장하여 용량을 절감한다.
@@ -524,6 +552,10 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | R13 | Advertising Budget | **캠페인 총액 1개** + 통화 드롭다운. 월별 입력 방식 폐지 |
 | R15 | Tool Input 순서 | 1 Raw Data → 2 캠페인 정보 → 3 캠페인 설정 → 4 환율 → 5 Ad Group → 6 Keyword → 7 현황 |
 | R16 | 환율 방향 | From/To 통화를 각각 선택하고 `1 To = rate From`으로 입력. 리포트 통화 = To |
+| R17 | Data Through Date | **완전 제거.** 기간 기준은 Campaign Start/End 뿐 |
+| R18 | 결측 vs 0 | Raw Data 없는 날짜는 빈 셀, 성과 0은 `0`. TOTAL 행은 빈 셀 제외 |
+| R19 | Overview | `PC / MO / Subtotal` 3행 구조. PC/MO Budget은 정액료, Subtotal은 합계 |
+| R20 | 틀 고정 | 전 시트 미사용 |
 | R14 | Agency Fee | % 입력 → `Total Spent × Rate` 수식으로 금액 산출 |
 
 ### 미해결
@@ -537,6 +569,8 @@ Keyword 시트의 열 구성은 `B~F` (PC 5열) · **`G` (Spacer, 완전 공백)
 | Q5 | 일별 합계와 키워드 합계에 **7 KRW 오차** 존재(네이버 반올림) | **일별 리포트를 정본**으로 사용 (Spend는 일별에서만 산출) |
 | Q11 | 정액료·Powerlink Budget을 `KRW 고정`으로 요청받았으나 툴은 범용이다 | **Raw Data 통화(From)로 고정**하고 라벨에 통화 코드를 표시. From이 KRW면 요청대로 KRW로 보인다 |
 | Q12 | Raw Data 업로드를 4개 슬롯으로 나눌지 | 네이버는 일별/키워드 2개 파일로만 내려받히므로 **2개 슬롯 유지**, 4종 데이터는 `캠페인유형`으로 자동 분리 |
+| Q13 | Powerlink Overview의 **PC/MO Budget** 입력이 없다 | PC·MO Budget은 공란, Subtotal에만 Powerlink Budget 표기. 디바이스별 예산이 필요하면 입력란 추가 필요 |
+| Q14 | 지표 순서·틀 고정 변경을 Sheet 2에만 적용할지 | Sheet 2·4가 같은 구조를 공유해야 하므로 **양쪽 모두 적용**. Sheet 4의 그룹별 Daily Breakdown도 동일 |
 | Q6 | Powerlink에서 제외한 `ALO Wellness Club` 캠페인의 향후 처리 | 현재 스코프 제외. 캠페인 필터는 Settings에서 변경 가능하도록 설계 |
 | Q7 | Excel에 브랜드 로고/컬러 등 **디자인 가이드** 적용 여부 | 기본 남색 헤더 테마 |
 | Q8 | **기존 ALO Weekly Report 원본 파일 미수령.** 레이아웃은 서면 규격대로 구현했으나 폰트·색상·열너비 등 세부 서식은 원본 대조 필요 | 첨부 파일 수령 시 재현도 보완 |
