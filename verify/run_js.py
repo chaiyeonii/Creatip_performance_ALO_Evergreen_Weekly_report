@@ -42,10 +42,13 @@ S.rawDaily   = dRes.rows;
 S.rawKeyword = kRes.rows;
 S.campaign = { client:'FIGS', name:'Always-on',
                start:'2026-07-07', end:'2026-08-06', through:'2026-08-06',
-               budgetBS:50000000, budgetPL:30000000, agencyFee:4000000,
                plCampaign:'Evergreen_PPC' };
+S.advBudget  = { currency:'USD', amount:46000 };
+S.budgetBS   = { currency:'KRW', amount:43230000 };
+S.budgetPL   = 21169400;
 S.bsFixedFee = { pc:5280000, mo:37950000 };
-S.fxRates    = { '2026-07':1385, '2026-08':1372 };
+S.agencyFeeRate = 8;
+S.fx = { fromCountry:'KR', fromCurrency:'KRW', toCountry:'US', toCurrency:'USD', rate:1400 };
 S.meta.dataThrough = '2026-08-06';
 
 step('autoMapAdGroups', function(){ autoMapAdGroups(); });
@@ -64,6 +67,8 @@ var SUMMARY = {
   unmappedKw: M.unmappedKw.size,
   missingFx: M.missingFx,
   budgetBS: M.budgetBS, budgetPL: M.budgetPL,
+  budgetTotal: M.budgetTotal, agencyRate: M.agencyRate,
+  fxLabel: fxLabel(), period: fmtPeriod(), reportCurrency: reportCurrency(),
   validationErrors: validate().errs,
   titles: reportTitles(),
   prefix: reportPrefix(),

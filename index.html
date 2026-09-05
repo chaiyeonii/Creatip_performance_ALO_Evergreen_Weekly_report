@@ -79,10 +79,12 @@
 
 <div class="wrap">
 
-  <!-- 1. UPLOAD -->
+  <!-- 1. RAW DATA -->
   <div class="card">
     <h2><span class="n">1</span> Raw Data 업로드</h2>
-    <p class="hint">네이버 검색광고에서 받은 <b>일별</b> / <b>키워드</b> 리포트를 그대로 올리세요. (CSV · XLSX)</p>
+    <p class="hint">네이버 검색광고에서 받은 <b>일별</b> / <b>키워드</b> 리포트를 그대로 올리세요 (CSV · XLSX).
+      두 파일에서 <b>Brand Search Daily · Brand Search Keyword · Powerlink Daily · Powerlink Keyword</b>
+      4종 데이터가 <code>캠페인유형</code> 컬럼 기준으로 자동 분리됩니다.</p>
     <div class="grid g2">
       <div>
         <div class="drop" id="dropDaily">
@@ -100,58 +102,82 @@
     <div id="uploadMsg"></div>
   </div>
 
-  <!-- 2. SETTINGS -->
+  <!-- 2. 캠페인 정보 -->
   <div class="card">
-    <h2><span class="n">2</span> 캠페인 설정</h2>
-    <p class="hint">입력값은 브라우저에 저장되어 다음 주차에 그대로 재사용됩니다.</p>
+    <h2><span class="n">2</span> 캠페인 정보</h2>
+    <p class="hint">Client와 Campaign Name은 모든 시트의 제목과 Sheet 1 정보표에 그대로 쓰입니다.</p>
     <div class="grid g2">
-      <div><label>Client <span style="color:var(--err)">*</span></label><input type="text" id="cClient" placeholder="예: ALO / FIGS"></div>
-      <div><label>Campaign Name <span style="color:var(--err)">*</span></label><input type="text" id="cName" placeholder="예: Evergreen / Always-on"></div>
+      <div><label>Client <span style="color:var(--err)">*</span></label>
+        <input type="text" id="cClient" placeholder="예: ALO / FIGS / OWALA"></div>
+      <div><label>Campaign Name <span style="color:var(--err)">*</span></label>
+        <input type="text" id="cName" placeholder="예: Evergreen / JISOO / Always-on"></div>
     </div>
-    <div class="grid g4" style="margin-top:12px">
-      <div><label>Campaign Start</label><input type="date" id="cStart"></div>
-      <div><label>Campaign End</label><input type="date" id="cEnd"></div>
-      <div><label>Data Through Date</label><input type="date" id="cThrough"></div>
-      <div><label>Powerlink 캠페인</label><select id="plCampaign"></select></div>
+    <div class="grid g3" style="margin-top:12px">
+      <div><label>Advertising Budget — Currency</label><select id="advCur"></select></div>
+      <div><label>Advertising Budget — Amount <span style="color:var(--err)">*</span></label>
+        <input type="number" id="advAmt" min="0" step="1" placeholder="예: 46000"></div>
+      <div><label>Agency Fee (%) <span style="color:var(--err)">*</span></label>
+        <input type="number" id="agencyRate" min="0" step="0.1" placeholder="예: 8"></div>
     </div>
-    <div class="grid g4" style="margin-top:12px">
-      <div><label>Brand Search Budget <span id="curBS" style="opacity:.7"></span></label><input type="number" id="bBS" min="0" step="1"></div>
-      <div><label>Powerlink Budget <span id="curPL" style="opacity:.7"></span></label><input type="number" id="bPL" min="0" step="1"></div>
-      <div><label>Brand Search 정액료 · PC <span id="curFeePC" style="opacity:.7"></span></label><input type="number" id="feePC" min="0" step="1"></div>
-      <div><label>Brand Search 정액료 · MO <span id="curFeeMO" style="opacity:.7"></span></label><input type="number" id="feeMO" min="0" step="1"></div>
-    </div>
-
     <p class="hint" style="margin:10px 0 0 0">
-      정액료는 <b>리포팅 기간 전체 금액</b>입니다. Budget은 KRW로 입력하면 환율로 USD 변환되어 표시됩니다.
-    </p>
+      Advertising Budget은 <b>캠페인 전체 기간의 총 예산 1개</b>입니다.
+      Agency Fee는 <code>Total Spent × %</code>로 계산되어 금액으로 표기됩니다.</p>
+    <div id="advNote"></div>
     <div id="titlePreview"></div>
   </div>
 
-  <!-- 3. CURRENCY / BUDGET / FEE -->
+  <!-- 3. 캠페인 설정 -->
   <div class="card">
-    <h2><span class="n">3</span> 통화 · 환율 · 예산</h2>
-    <p class="hint">환율은 캠페인 전체 기간에 <b>하나의 값</b>이 적용됩니다. 자동 조회하지 않으며 직접 입력해야 합니다.</p>
+    <h2><span class="n">3</span> 캠페인 설정</h2>
     <div class="grid g3">
-      <div><label>Country / Currency</label><select id="fxCountry"></select></div>
-      <div><label id="fxRateLabel">Exchange Rate</label><input type="number" id="fxRate" min="0" step="0.0001" placeholder="예: 1400"></div>
-      <div><label>Agency Fee (%)</label><input type="number" id="agencyRate" min="0" step="0.1" placeholder="예: 8"></div>
+      <div><label>Campaign Start <span style="color:var(--err)">*</span></label><input type="date" id="cStart"></div>
+      <div><label>Campaign End <span style="color:var(--err)">*</span></label><input type="date" id="cEnd"></div>
+      <div><label>Data Through Date</label><input type="date" id="cThrough"></div>
     </div>
-    <div id="fxNote"></div>
-    <h2 style="margin-top:22px"><span class="n">$</span> 월별 Advertising Budget (USD)</h2>
-    <p class="hint">데이터에 존재하는 월만 표시됩니다. Sheet 1에는 이 값들의 합계가 들어갑니다.</p>
-    <div id="budgetBox"><p style="color:var(--muted);font-size:12.5px;margin:0">일별 리포트를 업로드하면 필요한 월이 표시됩니다.</p></div>
+
+    <div style="font-weight:600;font-size:13px;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)">Brand Search</div>
+    <div class="grid g4">
+      <div><label>Budget — Currency</label><select id="bsCur"></select></div>
+      <div><label>Budget — Amount <span style="color:var(--err)">*</span></label>
+        <input type="number" id="bsAmt" min="0" step="1" placeholder="예: 30879"></div>
+      <div><label>정액료 · PC <span id="curFeePC" style="opacity:.7"></span> <span style="color:var(--err)">*</span></label>
+        <input type="number" id="feePC" min="0" step="1" placeholder="예: 5280000"></div>
+      <div><label>정액료 · MO <span id="curFeeMO" style="opacity:.7"></span></label>
+        <input type="number" id="feeMO" min="0" step="1" placeholder="예: 38951000"></div>
+    </div>
+
+    <div style="font-weight:600;font-size:13px;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)">Powerlink</div>
+    <div class="grid g2">
+      <div><label>Budget <span id="curPL" style="opacity:.7"></span> <span style="color:var(--err)">*</span></label>
+        <input type="number" id="plAmt" min="0" step="1" placeholder="예: 21169400"></div>
+      <div><label>Powerlink Campaign</label><select id="plCampaign"></select></div>
+    </div>
+    <div id="setupNote"></div>
   </div>
 
-  <!-- 4. AD GROUP -->
+  <!-- 4. 환율 -->
   <div class="card">
-    <h2><span class="n">4</span> Ad Group 매핑 <span style="font-weight:400;font-size:12px;color:var(--muted)">(Powerlink)</span></h2>
+    <h2><span class="n">4</span> 환율</h2>
+    <p class="hint">캠페인 전체 기간에 <b>하나의 환율</b>이 적용됩니다. 자동 조회하지 않으며 직접 입력해야 합니다.</p>
+    <div class="grid g3">
+      <div><label>From — Raw Data 통화</label><select id="fxFrom"></select></div>
+      <div><label>To — 리포트 통화</label><select id="fxTo"></select></div>
+      <div><label id="fxRateLabel">Exchange Rate</label>
+        <input type="number" id="fxRate" min="0" step="0.0001" placeholder="예: 1400"></div>
+    </div>
+    <div id="fxNote"></div>
+  </div>
+
+  <!-- 5. AD GROUP -->
+  <div class="card">
+    <h2><span class="n">5</span> Ad Group 매핑 <span style="font-weight:400;font-size:12px;color:var(--muted)">(Powerlink)</span></h2>
     <p class="hint">Raw 광고그룹을 <code>Branded / Shoes / Competitors / Generic</code> 4개 표준값으로 정규화합니다.</p>
     <div id="agBox"><p style="color:var(--muted);font-size:12.5px;margin:0">업로드 후 감지된 광고그룹이 표시됩니다.</p></div>
   </div>
 
-  <!-- 5. KEYWORD MAP -->
+  <!-- 6. KEYWORD MAP -->
   <div class="card">
-    <h2><span class="n">5</span> Keyword 매핑 (KO → EN)</h2>
+    <h2><span class="n">6</span> Keyword 매핑 (KO → EN)</h2>
     <p class="hint" id="kwHint"></p>
     <div class="row" style="margin-bottom:10px">
       <button class="btn" id="btnKwUpload">매핑 CSV 교체</button>
@@ -165,9 +191,9 @@
     </details>
   </div>
 
-  <!-- 6. STATUS -->
+  <!-- 7. STATUS -->
   <div class="card">
-    <h2><span class="n">6</span> 데이터 현황</h2>
+    <h2><span class="n">7</span> 데이터 현황</h2>
     <div id="statusBox"></div>
     <div class="row" style="margin-top:14px">
       <button class="btn btn-danger" id="btnClearData">업로드 데이터 삭제</button>
@@ -200,6 +226,26 @@ const COUNTRIES = [
   ['GB','United Kingdom','GBP'], ['EU','Eurozone','EUR']
 ];
 const currencyOf = code => (COUNTRIES.find(c=>c[0]===code)||['','','USD'])[2];
+const CUR_SYM = { USD:'$', KRW:'\u20A9', JPY:'\u00A5', EUR:'\u20AC', GBP:'\u00A3',
+  CNY:'\u00A5', AUD:'A$', CAD:'C$', SGD:'S$', HKD:'HK$', TWD:'NT$', THB:'\u0E3F',
+  VND:'\u20AB', IDR:'Rp', MYR:'RM', PHP:'\u20B1', INR:'\u20B9' };
+function reportCurrency(){ return S.fx.toCurrency || 'USD'; }
+/* rate is entered as "1 <To> = rate <From>", so From -> To divides by the rate */
+function convertAmount(amount, fromCur){
+  const F=S.fx.fromCurrency, T=S.fx.toCurrency, r=num(S.fx.rate);
+  if(!amount) return 0;
+  if(!fromCur || fromCur===T) return amount;
+  if(fromCur===F) return (F===T) ? amount : (r ? amount/r : 0);
+  return 0;   // a currency the single rate cannot convert
+}
+function fxLabel(){
+  const F=S.fx.fromCurrency, T=S.fx.toCurrency, r=num(S.fx.rate);
+  if(!F||!T) return '';
+  if(F===T) return T+' (no conversion)';
+  return '1 '+T+' = '+groupNum(r)+' '+F;
+}
+function fmtMoney(n){ const s=CUR_SYM[reportCurrency()]; 
+  return s ? s+groupNum(Math.round(n)) : groupNum(Math.round(n))+' '+reportCurrency(); }
 const DEVICES = ['PC','MO'];
 
 /* ---------- default keyword mapping (embedded) ---------- */
@@ -523,12 +569,14 @@ Branded,알로웰니스클럽,ALO wellness club`;
 /* ---------- state ---------- */
 function blankState(){
   return {
-    campaign : { client:'', name:'', start:'', end:'', through:'',
-                 budgetBS:null, budgetPL:null, plCampaign:'' },
-    bsFixedFee : { pc:null, mo:null },
-    fx : { country:'KR', currency:'KRW', rate:null },   // one rate for the whole campaign
-    monthlyBudget : {},                                 // 'YYYY-MM' -> USD
-    agencyFeeRate : null,                               // percent
+    campaign : { client:'', name:'', start:'', end:'', through:'', plCampaign:'' },
+    advBudget : { currency:'USD', amount:null },      // whole-campaign advertising budget
+    budgetBS  : { currency:'KRW', amount:null },      // Brand Search budget
+    budgetPL  : null,                                 // Powerlink budget, in the raw-data currency
+    bsFixedFee : { pc:null, mo:null },                // in the raw-data currency
+    agencyFeeRate : null,                             // percent
+    fx : { fromCountry:'KR', fromCurrency:'KRW',
+           toCountry:'US',   toCurrency:'USD', rate:null },   // one rate for the whole campaign
     keywordMap : parseKeywordCsv(DEFAULT_KEYWORD_CSV),
     keywordMapIsDefault : true,
     adGroupMap : {},
@@ -550,10 +598,13 @@ function load(){
     if(!raw) return;
     const o = JSON.parse(raw);
     S = Object.assign(blankState(), o);
-    S.campaign  = Object.assign(blankState().campaign, o.campaign||{});
-    S.bsFixedFee= Object.assign({pc:null,mo:null}, o.bsFixedFee||{});
-    S.fx        = Object.assign({country:'KR',currency:'KRW',rate:null}, o.fx||{});
-    S.monthlyBudget = o.monthlyBudget||{};
+    const B = blankState();
+    S.campaign  = Object.assign(B.campaign, o.campaign||{});
+    S.bsFixedFee= Object.assign(B.bsFixedFee, o.bsFixedFee||{});
+    S.fx        = Object.assign(B.fx, o.fx||{});
+    S.advBudget = Object.assign(B.advBudget, o.advBudget||{});
+    S.budgetBS  = Object.assign(B.budgetBS, o.budgetBS||{});
+    if(typeof o.budgetPL === 'number') S.budgetPL = o.budgetPL;
     if(!Array.isArray(S.keywordMap) || !S.keywordMap.length) S.keywordMap = parseKeywordCsv(DEFAULT_KEYWORD_CSV);
   }catch(e){ console.warn('load failed',e); }
 }
@@ -823,13 +874,12 @@ function buildModel(){
   const bsKeywords = aggKw(bsKw, false);
   const plKeywords = aggKw(plKw, true);
 
-  /* --- currency: ONE rate for the whole campaign --- */
+  /* --- currency: ONE rate for the whole campaign, From -> To --- */
   const missingFx = new Set();
-  const fxRate = (S.fx.currency==='USD') ? 1 : num(S.fx.rate);
-  const usd = (local) => {
-    if(!fxRate){ missingFx.add(S.fx.currency||'?'); return 0; }
-    return local/fxRate;
-  };
+  const sameCur = S.fx.fromCurrency===S.fx.toCurrency;
+  const rate = num(S.fx.rate);
+  if(!sameCur && !rate) missingFx.add(S.fx.fromCurrency||'?');
+  const usd = (local) => convertAmount(local, S.fx.fromCurrency);
   const toDaily = agg => {
     const dates = distinct([...agg.values()].map(a=>a.date)).sort();
     return dates.map(d=>{
@@ -850,15 +900,13 @@ function buildModel(){
     plGroupOut[g] = toDaily(sub);
   }
 
-  const budgetUsd = local => fxRate ? local/fxRate : 0;
-  const budgetTotal = Object.keys(S.monthlyBudget)
-        .reduce((a,k)=> a + num(S.monthlyBudget[k]), 0);   // already in USD
+  const budgetTotal = convertAmount(num(S.advBudget.amount), S.advBudget.currency);
 
   return {
     bsDaily:bsDailyOut, plDaily:plDailyOut, plGroup:plGroupOut,
     bsKeywords, plKeywords,
-    budgetBS: budgetUsd(num(S.campaign.budgetBS)),
-    budgetPL: budgetUsd(num(S.campaign.budgetPL)),
+    budgetBS: convertAmount(num(S.budgetBS.amount), S.budgetBS.currency),
+    budgetPL: convertAmount(num(S.budgetPL), S.fx.fromCurrency),
     budgetTotal,
     agencyRate: num(S.agencyFeeRate)/100,
     through, unmappedGroups:[...unmappedGroups], unmappedKw,
@@ -879,7 +927,13 @@ const NAVY='FF1F3864', BAND='FFD9E2F3', SUBTOT='FFF2F2F2', TOTROW='FFDCE3F0';
 const BLK  = { total:'FF1F3864', pc:'FF2E5395', mo:'FF4472C4' };
 const BLK2 = { total:'FF35548C', pc:'FF4A6FAE', mo:'FF6A8FD4' };
 const GROUP_FILL = { Branded:'FFDDEBF7', Shoes:'FFE2EFDA', Competitors:'FFFCE4D6', Generic:'FFFFF2CC' };
-const NF_INT='#,##0', NF_PCT='0.00%', NF_USD0='"$"#,##0', NF_USD2='"$"#,##0.00';
+const NF_INT='#,##0', NF_PCT='0.00%';
+let NF_USD0='"$"#,##0', NF_USD2='"$"#,##0.00';   // rebuilt per report currency
+function applyMoneyFormats(){
+  const c=reportCurrency(), s=CUR_SYM[c];
+  NF_USD0 = s ? `"${s}"#,##0`    : `#,##0" ${c}"`;
+  NF_USD2 = s ? `"${s}"#,##0.00` : `#,##0.00" ${c}"`;
+}
 const THIN={style:'thin',color:{argb:'FFBFC7D6'}};
 const MED ={style:'medium',color:{argb:'FF1F3864'}};
 const BOX={top:THIN,left:THIN,bottom:THIN,right:THIN};
@@ -907,12 +961,6 @@ function reportTitles(){
 function fmtPeriod(){
   const d=s=>String(s||'').replace(/-/g,'.');
   return (d(S.campaign.start)||'?')+' - '+(d(S.campaign.end)||'?');
-}
-function fxLabel(){
-  const cur=(S.fx.currency||'').trim(), rate=num(S.fx.rate);
-  if(!cur) return '';
-  if(cur==='USD') return 'USD (no conversion)';
-  return '1 USD = '+groupNum(rate)+' '+cur;
 }
 
 function styleHeader(ws,row,c1,c2,fill){
@@ -1115,6 +1163,7 @@ async function buildWorkbook(M){
   wb.creator='Weekly Report Generator';
   wb.created=new Date();
 
+  applyMoneyFormats();
   const T = reportTitles();
   const wsOverall = wb.addWorksheet('Overall');
   const wsBS      = wb.addWorksheet('Brand Search');
@@ -1334,68 +1383,118 @@ function detectedAdGroups(){
     .map(r=>r.adGroup)).sort();
 }
 
-function renderCurrency(){
-  const sel=$('fxCountry');
-  sel.innerHTML=COUNTRIES.map(c=>
-    `<option value="${c[0]}" ${S.fx.country===c[0]?'selected':''}>${c[1]} / ${c[2]}</option>`).join('');
-  const cur=S.fx.currency||'KRW';
-  const isUsd=cur==='USD';
-  $('fxRateLabel').textContent = isUsd ? 'Exchange Rate (변환 없음)' : `Exchange Rate — 1 USD = ? ${cur}`;
-  $('fxRate').value = isUsd ? '' : (S.fx.rate??'');
-  $('fxRate').disabled = isUsd;
-  $('fxRate').placeholder = isUsd ? '해당 없음' : '예: 1400';
-  $('agencyRate').value = S.agencyFeeRate??'';
-
-  const rate=num(S.fx.rate), fee=num(S.agencyFeeRate);
-  let note='';
-  if(isUsd){
-    note='<div class="msg ok">Raw Data가 USD 기준이므로 환율 변환 없이 그대로 사용합니다. Sheet 1 표기: <code>USD (no conversion)</code></div>';
-  }else if(rate){
-    note=`<div class="msg ok">캠페인 전체에 동일 적용 · Sheet 1 표기: <code>1 USD = ${groupNum(rate)} ${cur}</code></div>`;
-  }else{
-    note='<div class="msg warn">Exchange Rate를 입력해야 리포트를 생성할 수 있습니다.</div>';
-  }
-  if(fee) note+=`<div class="msg ok">Agency Fee Rate <b>${fee}%</b> — Sheet 1에는 <code>Total Spent × ${(fee/100).toFixed(4)}</code> 로 계산된 금액이 들어갑니다.</div>`;
-  $('fxNote').innerHTML=note;
+function countryOptions(sel){
+  return COUNTRIES.map(c=>
+    `<option value="${c[0]}" ${sel===c[0]?'selected':''}>${c[1]} / ${c[2]}</option>`).join('');
+}
+/* budgets may only be entered in a currency the rate can actually convert */
+function budgetCurrencyOptions(sel){
+  const list=distinct([S.fx.fromCurrency,S.fx.toCurrency].filter(Boolean));
+  return list.map(c=>`<option value="${c}" ${sel===c?'selected':''}>${c}</option>`).join('');
 }
 
-function renderBudget(){
-  const months=detectedMonths();
-  const box=$('budgetBox');
-  if(!months.length){
-    box.innerHTML='<p style="color:var(--muted);font-size:12.5px;margin:0">일별 리포트를 업로드하면 필요한 월이 표시됩니다.</p>';
+/* ---------- 2. 캠페인 정보 ---------- */
+function renderCampaignInfo(){
+  $('cClient').value=S.campaign.client||'';
+  $('cName').value=S.campaign.name||'';
+  $('advCur').innerHTML=budgetCurrencyOptions(S.advBudget.currency);
+  if(!$('advCur').value) { S.advBudget.currency=S.fx.toCurrency; $('advCur').value=S.fx.toCurrency; }
+  $('advAmt').value=S.advBudget.amount??'';
+  $('agencyRate').value=S.agencyFeeRate??'';
+
+  const amt=num(S.advBudget.amount), rc=reportCurrency();
+  const conv=convertAmount(amt,S.advBudget.currency);
+  const fee=num(S.agencyFeeRate);
+  let h='';
+  if(amt){
+    h+=`<div class="msg ok">Advertising Budget <b>${fmtMoney(conv)}</b>`;
+    if(S.advBudget.currency!==rc) h+=` <span style="opacity:.7">(${groupNum(amt)} ${S.advBudget.currency} → ${rc})</span>`;
+    h+=' — Sheet 1 정보표에 이 값이 들어갑니다.</div>';
+  }
+  if(fee) h+=`<div class="msg ok">Agency Fee <b>${fee}%</b> — Excel에는 <code>Total Spent × ${(fee/100).toFixed(4)}</code> 수식으로 들어갑니다.</div>`;
+  $('advNote').innerHTML=h;
+  renderTitlePreview();
+}
+
+function renderTitlePreview(){
+  const box=$('titlePreview'); if(!box) return;
+  const c=(S.campaign.client||'').trim(), n=(S.campaign.name||'').trim();
+  if(!c||!n){
+    box.innerHTML='<div class="msg warn">Client와 Campaign Name을 입력하면 각 시트 제목이 여기에 표시됩니다.</div>';
     return;
   }
-  let h='<div class="grid g4">';
-  for(const m of months){
-    const v=S.monthlyBudget[m]??'';
-    h+=`<div><label>${m} <span class="pill ${v!==''?'p-ok':'p-no'}">${v!==''?'입력됨':'필요'}</span></label>
-        <input type="number" min="0" step="1" data-bg="${m}" value="${v}" placeholder="USD"></div>`;
-  }
-  h+='</div>';
-  const total=months.reduce((a,m)=>a+num(S.monthlyBudget[m]),0);
-  const media=num(S.campaign.budgetBS)+num(S.campaign.budgetPL);
-  const rate=(S.fx.currency==='USD')?1:num(S.fx.rate);
-  const mediaUsd=rate?media/rate:0;
-  h+=`<div class="msg ${total?'ok':'warn'}" style="margin-top:12px">
-        <b>Advertising Budget 합계 = ${fmtUsd(total,0)}</b> — Sheet 1의 Advertising Budget 값`;
-  if(total && mediaUsd){
-    const diff=Math.abs(total-mediaUsd);
-    h+= diff<1
-      ? `<br>매체별 Budget 합계 ${fmtUsd(mediaUsd,0)} 와 일치합니다.`
-      : `<br><span style="color:var(--warn)">매체별 Budget 합계 ${fmtUsd(mediaUsd,0)} 와 ${fmtUsd(diff,0)} 차이가 있습니다. Media Summary의 Budget 열은 매체별 값을 사용합니다.</span>`;
-  }
-  h+='</div>';
-  box.innerHTML=h;
-  box.querySelectorAll('input[data-bg]').forEach(el=>{
-    el.addEventListener('input',()=>{
-      const m=el.dataset.bg;
-      if(el.value==='') delete S.monthlyBudget[m]; else S.monthlyBudget[m]=Number(el.value);
-      save(); renderBudget(); refreshValidation();
-    });
-  });
+  const T=reportTitles();
+  box.innerHTML='<div class="msg ok"><b>생성될 시트 제목</b> (각 시트 B2)<br>'+
+    [['Overall',T.overall],['Brand Search',T.bs],['Brand Search Keywords',T.bsk],
+     ['Powerlink',T.pl],['Powerlink Keywords',T.plk]]
+    .map(x=>`<code>${esc(x[1])}</code> <span style="opacity:.6">— ${x[0]}</span>`).join('<br>')+'</div>';
 }
 
+/* ---------- 3. 캠페인 설정 ---------- */
+function renderSetup(){
+  $('cStart').value=S.campaign.start||'';
+  $('cEnd').value=S.campaign.end||'';
+  $('cThrough').value=S.campaign.through||S.meta.dataThrough||'';
+
+  const raw=S.fx.fromCurrency||'KRW';
+  $('curFeePC').textContent='('+raw+')';
+  $('curFeeMO').textContent='('+raw+')';
+  $('curPL').textContent='('+raw+')';
+
+  $('bsCur').innerHTML=budgetCurrencyOptions(S.budgetBS.currency);
+  if(!$('bsCur').value){ S.budgetBS.currency=raw; $('bsCur').value=raw; }
+  $('bsAmt').value=S.budgetBS.amount??'';
+  $('feePC').value=S.bsFixedFee.pc??'';
+  $('feeMO').value=S.bsFixedFee.mo??'';
+  $('plAmt').value=S.budgetPL??'';
+
+  const camps=detectedPlCampaigns();
+  $('plCampaign').innerHTML=camps.length
+    ? camps.map(c=>`<option value="${esc(c)}" ${S.campaign.plCampaign===c?'selected':''}>${esc(c)}</option>`).join('')
+    : '<option value="">(업로드 필요)</option>';
+
+  const bs=convertAmount(num(S.budgetBS.amount),S.budgetBS.currency);
+  const pl=convertAmount(num(S.budgetPL),raw);
+  const media=bs+pl;
+  const adv=convertAmount(num(S.advBudget.amount),S.advBudget.currency);
+  let h='';
+  if(media){
+    h+=`<div class="msg ok">매체별 Budget 합계 <b>${fmtMoney(media)}</b> `+
+       `<span style="opacity:.7">(BS ${fmtMoney(bs)} + PL ${fmtMoney(pl)})</span> — Media Summary의 Budget 열`;
+    if(adv){
+      const diff=Math.abs(media-adv);
+      h+= diff<1 ? '<br>Advertising Budget과 일치합니다.'
+                 : `<br><span style="color:var(--warn)">Advertising Budget ${fmtMoney(adv)} 과 ${fmtMoney(diff)} 차이가 있습니다. Sheet 1 정보표는 Advertising Budget, Media Summary는 매체별 값을 씁니다.</span>`;
+    }
+    h+='</div>';
+  }
+  $('setupNote').innerHTML=h;
+}
+
+/* ---------- 4. 환율 ---------- */
+function renderFx(){
+  $('fxFrom').innerHTML=countryOptions(S.fx.fromCountry);
+  $('fxTo').innerHTML=countryOptions(S.fx.toCountry);
+  const F=S.fx.fromCurrency, T=S.fx.toCurrency, same=(F===T);
+  $('fxRateLabel').textContent = same ? 'Exchange Rate (변환 없음)' : `Exchange Rate — 1 ${T} = ? ${F}`;
+  $('fxRate').value = same ? '' : (S.fx.rate??'');
+  $('fxRate').disabled = same;
+  $('fxRate').placeholder = same ? '해당 없음' : '예: 1400';
+
+  const rate=num(S.fx.rate);
+  let h='';
+  if(same){
+    h=`<div class="msg ok">From과 To가 같은 통화(${T})이므로 환율 변환 없이 그대로 사용합니다. Sheet 1 표기: <code>${esc(fxLabel())}</code></div>`;
+  }else if(rate){
+    h=`<div class="msg ok">Sheet 1 표기: <code>${esc(fxLabel())}</code><br>`+
+      `변환식: <code>${T} = ${F} / ${groupNum(rate)}</code> — 캠페인 전체에 동일 적용됩니다.</div>`;
+  }else{
+    h='<div class="msg warn">Exchange Rate를 입력해야 리포트를 생성할 수 있습니다.</div>';
+  }
+  $('fxNote').innerHTML=h;
+}
+
+/* ---------- 5. Ad Group ---------- */
 function renderAdGroups(){
   const gs=detectedAdGroups();
   if(!gs.length){ $('agBox').innerHTML='<p style="color:var(--muted);font-size:12.5px;margin:0">업로드 후 감지된 광고그룹이 표시됩니다.</p>'; return; }
@@ -1403,8 +1502,8 @@ function renderAdGroups(){
   for(const g of gs){
     const cur=S.adGroupMap[g]||'';
     const auto=inferGroup(g);
-    h+=`<tr><td><code>${g}</code></td><td>
-        <select data-ag="${g.replace(/"/g,'&quot;')}">
+    h+=`<tr><td><code>${esc(g)}</code></td><td>
+        <select data-ag="${esc(g)}">
           <option value="">— 미분류 —</option>
           ${GROUPS.map(x=>`<option value="${x}" ${cur===x?'selected':''}>${x}</option>`).join('')}
         </select></td>
@@ -1428,19 +1527,20 @@ function autoMapAdGroups(){
   }
 }
 
+/* ---------- 6. Keyword mapping ---------- */
 function renderKeywordMap(){
   const {conflicts}=keywordLookup();
   $('kwHint').innerHTML=`현재 <b>${S.keywordMap.length.toLocaleString()}</b>개 매핑 등록됨`+
     (S.keywordMapIsDefault?' (기본 내장 목록)':' (사용자 업로드)')+
     (conflicts.length?` · <span style="color:var(--warn)">EN 충돌 ${conflicts.length}건: ${conflicts.slice(0,5).join(', ')}</span>`:'');
   $('kwSummary').textContent=`매핑 목록 보기 (${S.keywordMap.length.toLocaleString()}행)`;
-  const t=$('kwTable');
-  t.innerHTML='<thead><tr><th style="width:110px">Category</th><th>Keyword (KO)</th><th>Keyword (EN)</th></tr></thead><tbody>'+
+  $('kwTable').innerHTML='<thead><tr><th style="width:110px">Category</th><th>Keyword (KO)</th><th>Keyword (EN)</th></tr></thead><tbody>'+
     S.keywordMap.map(r=>`<tr><td>${esc(r.category)}</td><td>${esc(r.ko)}</td><td>${esc(r.en)}</td></tr>`).join('')+
     '</tbody>';
 }
 function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* ---------- 7. Status ---------- */
 function renderStatus(){
   const d=S.rawDaily, k=S.rawKeyword;
   if(!d.length && !k.length){
@@ -1455,7 +1555,6 @@ function renderStatus(){
     <div><b>${d.length.toLocaleString()}</b><span>일별 행 (BS ${cnt(d,'BS')} / PL ${cnt(d,'PL')})</span></div>
     <div><b>${k.length.toLocaleString()}</b><span>키워드 행 (BS ${cnt(k,'BS')} / PL ${cnt(k,'PL')})</span></div>
     <div><b>${dates[0]||'-'} ~ ${dates[dates.length-1]||'-'}</b><span>데이터 기간</span></div>
-    <div><b>${detectedMonths().join(', ')||'-'}</b><span>포함 월</span></div>
     <div><b>${esc(fxLabel()||'-')}</b><span>적용 환율</span></div>
     <div><b>${(bytes/1024).toFixed(0)} KB</b><span>localStorage 사용량</span></div>
     <div><b>${S.meta.uploadedAt||'-'}</b><span>마지막 업로드</span></div>
@@ -1464,59 +1563,23 @@ function renderStatus(){
     $('statusBox').innerHTML+='<div class="msg warn">저장 용량이 5MB에 근접했습니다. 이전 데이터를 삭제해 주세요.</div>';
 }
 
-function renderTitlePreview(){
-  const box=$('titlePreview'); if(!box) return;
-  const c=(S.campaign.client||'').trim(), n=(S.campaign.name||'').trim();
-  if(!c||!n){
-    box.innerHTML='<div class="msg warn">Client와 Campaign Name을 입력하면 각 시트 제목이 여기에 표시됩니다.</div>';
-    return;
-  }
-  const T=reportTitles();
-  box.innerHTML='<div class="msg ok"><b>생성될 시트 제목</b> (각 시트 B2)<br>'+
-    [['Overall',T.overall],['Brand Search',T.bs],['Brand Search Keywords',T.bsk],
-     ['Powerlink',T.pl],['Powerlink Keywords',T.plk]]
-    .map(x=>`<code>${esc(x[1])}</code> <span style="opacity:.6">— ${x[0]}</span>`).join('<br>')+'</div>';
-}
-function renderSettings(){
-  $('cClient').value=S.campaign.client||'';
-  $('cName').value=S.campaign.name||'';
-  $('cStart').value=S.campaign.start||'';
-  $('cEnd').value=S.campaign.end||'';
-  $('cThrough').value=S.campaign.through||S.meta.dataThrough||'';
-  $('bBS').value=S.campaign.budgetBS??'';
-  $('bPL').value=S.campaign.budgetPL??'';
-  const cu=S.fx.currency||'KRW';
-  if($('curBS')) $('curBS').textContent='('+cu+')';
-  if($('curPL')) $('curPL').textContent='('+cu+')';
-  if($('curFeePC')) $('curFeePC').textContent='('+cu+')';
-  if($('curFeeMO')) $('curFeeMO').textContent='('+cu+')';
-  $('feePC').value=S.bsFixedFee.pc??'';
-  $('feeMO').value=S.bsFixedFee.mo??'';
-  const camps=detectedPlCampaigns();
-  $('plCampaign').innerHTML=camps.length
-    ? camps.map(c=>`<option value="${esc(c)}" ${S.campaign.plCampaign===c?'selected':''}>${esc(c)}</option>`).join('')
-    : '<option value="">(업로드 필요)</option>';
-}
-
 /* ---------- validation ---------- */
 function validate(){
-  const errs=[], warns=[];
+  const errs=[];
   if(!S.rawDaily.length) errs.push('일별 리포트를 업로드하세요.');
   if(!S.rawKeyword.length) errs.push('키워드 리포트를 업로드하세요.');
   if(!(S.campaign.client||'').trim()) errs.push('Client를 입력하세요.');
   if(!(S.campaign.name||'').trim()) errs.push('Campaign Name을 입력하세요.');
-  if(!S.campaign.start||!S.campaign.end) errs.push('Campaign Period를 입력하세요.');
-  if(!num(S.campaign.budgetBS)) errs.push('Brand Search Budget을 입력하세요.');
-  if(!num(S.campaign.budgetPL)) errs.push('Powerlink Budget을 입력하세요.');
-  if(!S.rawDaily.length && false) {}
-  if(!num(S.bsFixedFee.pc)&&!num(S.bsFixedFee.mo)) errs.push('Brand Search 정액료(PC/MO)를 입력하세요.');
-  if(S.fx.currency!=='USD' && !num(S.fx.rate)) errs.push('Exchange Rate를 입력하세요.');
-  const missB=detectedMonths().filter(m=>!num(S.monthlyBudget[m]));
-  if(missB.length) errs.push('월별 Advertising Budget 미입력: <b>'+missB.join(', ')+'</b>');
+  if(!num(S.advBudget.amount)) errs.push('Advertising Budget을 입력하세요.');
   if(S.agencyFeeRate===null||S.agencyFeeRate==='') errs.push('Agency Fee (%)를 입력하세요.');
+  if(!S.campaign.start||!S.campaign.end) errs.push('Campaign Period를 입력하세요.');
+  if(!num(S.budgetBS.amount)) errs.push('Brand Search Budget을 입력하세요.');
+  if(!num(S.budgetPL)) errs.push('Powerlink Budget을 입력하세요.');
+  if(!num(S.bsFixedFee.pc)&&!num(S.bsFixedFee.mo)) errs.push('Brand Search 정액료(PC/MO)를 입력하세요.');
+  if(S.fx.fromCurrency!==S.fx.toCurrency && !num(S.fx.rate)) errs.push('Exchange Rate를 입력하세요.');
   const unAg=detectedAdGroups().filter(g=>!S.adGroupMap[g]);
   if(unAg.length) errs.push('Ad Group 미지정: <b>'+unAg.join(', ')+'</b>');
-  return {errs,warns};
+  return {errs};
 }
 function refreshValidation(){
   const {errs}=validate();
@@ -1526,7 +1589,7 @@ function refreshValidation(){
     : '<span style="color:var(--ok)">모든 입력이 완료되었습니다. 생성할 수 있습니다.</span>';
 }
 
-/* ---------- upload handlers ---------- */
+/* ---------- upload ---------- */
 async function handleUpload(file,kind){
   try{
     const rows=await readFile(file);
@@ -1546,7 +1609,7 @@ async function handleUpload(file,kind){
     S.meta.uploadedAt=new Date().toLocaleString('ko-KR');
     const camps=detectedPlCampaigns();
     if(!S.campaign.plCampaign||!camps.includes(S.campaign.plCampaign))
-      S.campaign.plCampaign=camps[0]||'';   // user picks from the detected list; never hardcode one
+      S.campaign.plCampaign=camps[0]||'';
     autoMapAdGroups();
     save(); renderAll();
     let m=`<b>${esc(file.name)}</b> — ${res.rows.length.toLocaleString()}행 로드 완료.`;
@@ -1584,15 +1647,14 @@ async function generate(){
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 
     const un=[...M.unmappedKw.entries()].sort((a,b)=>b[1]-a[1]);
-    let msg=`<b>${name}</b> 생성 완료.<br>`+
-      `Brand Search ${M.bsDaily.length}일 / Powerlink ${M.plDaily.length}일 · `+
-      `키워드 BS ${M.bsKeywords.length} · PL ${M.plKeywords.length}`;
     showMsg('unmappedBox', un.length?'warn':'ok',
       un.length
         ? `<b>미매핑 키워드 ${un.length}건</b> — Excel에 <code>[UNMAPPED]</code>로 표기됩니다.<br>`+
           un.slice(0,30).map(([k,v])=>`${esc(k)} <span style="opacity:.6">(${fmtInt(v)})</span>`).join(' · ')
         : '미매핑 키워드 없음 — 모든 키워드가 영문으로 변환되었습니다.');
-    $('genMsg').innerHTML='<span style="color:var(--ok)">'+msg+'</span>';
+    $('genMsg').innerHTML='<span style="color:var(--ok)"><b>'+esc(name)+'</b> 생성 완료.<br>'+
+      `Brand Search ${M.bsDaily.length}일 / Powerlink ${M.plDaily.length}일 · `+
+      `키워드 BS ${M.bsKeywords.length} · PL ${M.plKeywords.length}</span>`;
   }catch(e){
     $('genMsg').innerHTML='<span style="color:var(--err)">생성 실패: '+esc(e.message)+'</span>';
     console.error(e);
@@ -1603,8 +1665,8 @@ async function generate(){
 
 /* ---------- render all ---------- */
 function renderAll(){
-  renderSettings(); renderCurrency(); renderBudget(); renderAdGroups();
-  renderKeywordMap(); renderStatus(); renderTitlePreview(); refreshValidation();
+  renderFx(); renderCampaignInfo(); renderSetup();
+  renderAdGroups(); renderKeywordMap(); renderStatus(); refreshValidation();
   $('lblDaily').textContent=S.meta.dailyFile||'클릭 또는 드래그 & 드롭';
   $('lblKw').textContent=S.meta.keywordFile||'클릭 또는 드래그 & 드롭';
   $('dropDaily').classList.toggle('has',!!S.meta.dailyFile);
@@ -1612,43 +1674,58 @@ function renderAll(){
 }
 
 /* ---------- wire up ---------- */
-function bindSetting(id,setter){
-  $(id).addEventListener('input',()=>{ setter($(id).value); save(); refreshValidation(); });
+function on(id,ev,fn){ const el=$(id); if(el) el.addEventListener(ev,fn); }
+function bindText(id,setter){
+  on(id,'input',()=>{ setter($(id).value); save(); renderCampaignInfo(); renderSetup(); refreshValidation(); });
+}
+function bindNum(id,setter){
+  on(id,'input',()=>{ const v=$(id).value; setter(v===''?null:Number(v)); save();
+                      renderCampaignInfo(); renderSetup(); refreshValidation(); });
 }
 window.addEventListener('DOMContentLoaded',()=>{
   load();
   wireDrop('dropDaily','fileDaily','lblDaily','daily');
   wireDrop('dropKw','fileKw','lblKw','keyword');
 
-  bindSetting('cClient',v=>{S.campaign.client=v; renderTitlePreview();});
-  bindSetting('cName',v=>{S.campaign.name=v; renderTitlePreview();});
-  bindSetting('cStart',v=>S.campaign.start=v);
-  bindSetting('cEnd',v=>S.campaign.end=v);
-  bindSetting('cThrough',v=>S.campaign.through=v);
-  bindSetting('bBS',v=>S.campaign.budgetBS=v===''?null:Number(v));
-  bindSetting('bPL',v=>S.campaign.budgetPL=v===''?null:Number(v));
-  bindSetting('feePC',v=>S.bsFixedFee.pc=v===''?null:Number(v));
-  bindSetting('feeMO',v=>S.bsFixedFee.mo=v===''?null:Number(v));
-  $('fxCountry').addEventListener('change',()=>{
-    S.fx.country=$('fxCountry').value;
-    S.fx.currency=currencyOf(S.fx.country);
-    if(S.fx.currency==='USD') S.fx.rate=1;
-    save(); renderCurrency(); renderBudget(); renderStatus(); refreshValidation();
-  });
-  $('fxRate').addEventListener('input',()=>{
-    S.fx.rate=$('fxRate').value===''?null:Number($('fxRate').value);
-    save(); renderCurrency(); renderBudget(); renderStatus(); refreshValidation();
-  });
-  $('agencyRate').addEventListener('input',()=>{
-    S.agencyFeeRate=$('agencyRate').value===''?null:Number($('agencyRate').value);
-    save(); renderCurrency(); refreshValidation();
-  });
-  $('plCampaign').addEventListener('change',()=>{
+  /* 2. 캠페인 정보 */
+  bindText('cClient',v=>S.campaign.client=v);
+  bindText('cName',v=>S.campaign.name=v);
+  bindNum('advAmt',v=>S.advBudget.amount=v);
+  bindNum('agencyRate',v=>S.agencyFeeRate=v);
+  on('advCur','change',()=>{ S.advBudget.currency=$('advCur').value; save(); renderCampaignInfo(); renderSetup(); refreshValidation(); });
+
+  /* 3. 캠페인 설정 */
+  bindText('cStart',v=>S.campaign.start=v);
+  bindText('cEnd',v=>S.campaign.end=v);
+  bindText('cThrough',v=>S.campaign.through=v);
+  bindNum('bsAmt',v=>S.budgetBS.amount=v);
+  bindNum('feePC',v=>S.bsFixedFee.pc=v);
+  bindNum('feeMO',v=>S.bsFixedFee.mo=v);
+  bindNum('plAmt',v=>S.budgetPL=v);
+  on('bsCur','change',()=>{ S.budgetBS.currency=$('bsCur').value; save(); renderSetup(); refreshValidation(); });
+  on('plCampaign','change',()=>{
     S.campaign.plCampaign=$('plCampaign').value; autoMapAdGroups(); save(); renderAll();
   });
 
-  $('btnKwUpload').addEventListener('click',()=>$('fileKwMap').click());
-  $('fileKwMap').addEventListener('change',async()=>{
+  /* 4. 환율 */
+  function fxChanged(){
+    S.fx.fromCountry=$('fxFrom').value; S.fx.fromCurrency=currencyOf(S.fx.fromCountry);
+    S.fx.toCountry=$('fxTo').value;     S.fx.toCurrency=currencyOf(S.fx.toCountry);
+    const allowed=[S.fx.fromCurrency,S.fx.toCurrency];
+    if(!allowed.includes(S.advBudget.currency)) S.advBudget.currency=S.fx.toCurrency;
+    if(!allowed.includes(S.budgetBS.currency))  S.budgetBS.currency=S.fx.fromCurrency;
+    save(); renderAll();
+  }
+  on('fxFrom','change',fxChanged);
+  on('fxTo','change',fxChanged);
+  on('fxRate','input',()=>{
+    S.fx.rate=$('fxRate').value===''?null:Number($('fxRate').value);
+    save(); renderFx(); renderCampaignInfo(); renderSetup(); renderStatus(); refreshValidation();
+  });
+
+  /* 6. Keyword mapping */
+  on('btnKwUpload','click',()=>$('fileKwMap').click());
+  on('fileKwMap','change',async()=>{
     const f=$('fileKwMap').files[0]; if(!f) return;
     try{
       const rows=await readFile(f);
@@ -1658,32 +1735,33 @@ window.addEventListener('DOMContentLoaded',()=>{
       showMsg('unmappedBox','ok',`매핑 ${parsed.length}행으로 교체되었습니다.`);
     }catch(e){ showMsg('unmappedBox','err','매핑 CSV 읽기 실패: '+esc(e.message)); }
   });
-  $('btnKwDownload').addEventListener('click',()=>{
+  on('btnKwDownload','click',()=>{
     const csv='category,keyword_ko,keyword_en\n'+
       S.keywordMap.map(r=>[r.category,r.ko,r.en].map(x=>/[",]/.test(x)?`"${String(x).replace(/"/g,'""')}"`:x).join(',')).join('\n');
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
     a.download='keyword_mapping.csv'; a.click();
   });
-  $('btnKwReset').addEventListener('click',()=>{
+  on('btnKwReset','click',()=>{
     if(!confirm('키워드 매핑을 기본 내장 목록으로 되돌립니다. 계속할까요?')) return;
     S.keywordMap=parseKeywordCsv(DEFAULT_KEYWORD_CSV); S.keywordMapIsDefault=true; save(); renderKeywordMap();
   });
 
-  $('btnClearData').addEventListener('click',()=>{
-    if(!confirm('업로드한 Raw Data를 삭제합니다. 설정값(기간·예산·환율·매핑)은 유지됩니다. 계속할까요?')) return;
+  /* 7. 데이터 관리 */
+  on('btnClearData','click',()=>{
+    if(!confirm('업로드한 Raw Data를 삭제합니다. 설정값은 유지됩니다. 계속할까요?')) return;
     S.rawDaily=[]; S.rawKeyword=[];
     S.meta={dailyFile:'',keywordFile:'',uploadedAt:'',dataThrough:''};
     save(); renderAll(); showMsg('uploadMsg','ok','업로드 데이터를 삭제했습니다.');
   });
-  $('btnClearAll').addEventListener('click',()=>{
+  on('btnClearAll','click',()=>{
     if(!confirm('모든 데이터와 설정을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
     localStorage.removeItem(STORE_KEY); localStorage.removeItem(LEGACY_KEY);
     S=blankState(); renderAll();
     showMsg('uploadMsg','ok','전체 초기화되었습니다.');
   });
 
-  $('btnGenerate').addEventListener('click',generate);
+  on('btnGenerate','click',generate);
   renderAll();
 });
 </script>
