@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALO Evergreen Weekly Report Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{
+    --navy:#1f3864; --navy2:#2f4f8f; --ink:#1a1d24; --muted:#6b7280;
+    --line:#dfe3ea; --bg:#f5f6f8; --card:#fff; --ok:#1a7f4b; --warn:#b45309; --err:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif}
+  header{background:var(--navy);color:#fff;padding:18px 24px}
+  header h1{margin:0;font-size:18px;letter-spacing:-.2px}
+  header p{margin:4px 0 0;font-size:12.5px;opacity:.75}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 24px 80px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+  .card h2{margin:0 0 4px;font-size:14.5px;display:flex;align-items:center;gap:8px}
+  .card h2 .n{background:var(--navy);color:#fff;width:20px;height:20px;border-radius:50%;
+              display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+  .card .hint{margin:0 0 14px 28px;color:var(--muted);font-size:12.5px}
+  .grid{display:grid;gap:12px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;
+               font:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid #c7d6f2;border-color:var(--navy2)}
+  input[type=number]{text-align:right;font-variant-numeric:tabular-nums}
+  .drop{border:2px dashed #c3cad6;border-radius:9px;padding:22px 16px;text-align:center;
+        cursor:pointer;background:#fafbfd;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--navy2);background:#eef3fc}
+  .drop b{display:block;font-size:13px;margin-bottom:3px}
+  .drop span{font-size:12px;color:var(--muted)}
+  .drop.has{border-style:solid;border-color:var(--ok);background:#f1f9f4}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+  th{background:#eef1f6;font-weight:600;font-size:11.5px;color:#42506b}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .scroll{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:7px}
+  .scroll table{border:0}.scroll th{position:sticky;top:0;z-index:1}
+  .scroll th,.scroll td{border-left:0;border-right:0}
+  button{font:inherit;border:0;border-radius:7px;padding:9px 16px;cursor:pointer;font-weight:600}
+  .btn{background:#e9edf4;color:#2b3855}
+  .btn:hover{background:#dde3ed}
+  .btn-primary{background:var(--navy);color:#fff;font-size:15px;padding:13px 26px}
+  .btn-primary:hover{background:var(--navy2)}
+  .btn-primary:disabled{background:#b7bdc9;cursor:not-allowed}
+  .btn-danger{background:#fdecec;color:var(--err)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .msg{padding:10px 13px;border-radius:7px;font-size:12.5px;margin-top:10px;line-height:1.6}
+  .msg.ok{background:#eef8f2;color:#14532d;border:1px solid #b9e2c9}
+  .msg.warn{background:#fff8ec;color:#7c4a03;border:1px solid #f2d9a8}
+  .msg.err{background:#fdeeee;color:#7f1d1d;border:1px solid #f0bcbc}
+  .pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:700}
+  .p-ok{background:#dcf0e4;color:#14532d}
+  .p-no{background:#fae3e3;color:#7f1d1d}
+  .stat{display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px}
+  .stat div b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+  .stat div span{color:var(--muted);font-size:11.5px}
+  details summary{cursor:pointer;font-weight:600;font-size:13px;padding:4px 0}
+  .foot{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+        padding:12px 24px;display:flex;justify-content:center;gap:14px;align-items:center;
+        box-shadow:0 -2px 12px rgba(0,0,0,.05)}
+  code{background:#eef1f6;padding:1px 5px;border-radius:4px;font-size:11.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ALO Evergreen Weekly Report Generator</h1>
+  <p>네이버 검색광고 Raw Data → 클라이언트 제출용 5-Sheet Excel 리포트</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. UPLOAD -->
+  <div class="card">
+    <h2><span class="n">1</span> Raw Data 업로드</h2>
+    <p class="hint">네이버 검색광고에서 받은 <b>일별</b> / <b>키워드</b> 리포트를 그대로 올리세요. (CSV · XLSX)</p>
+    <div class="grid g2">
+      <div>
+        <div class="drop" id="dropDaily">
+          <b>① 일별 리포트</b><span id="lblDaily">클릭 또는 드래그 &amp; 드롭</span>
+        </div>
+        <input type="file" id="fileDaily" accept=".csv,.xlsx,.xls" hidden>
+      </div>
+      <div>
+        <div class="drop" id="dropKw">
+          <b>② 키워드 리포트</b><span id="lblKw">클릭 또는 드래그 &amp; 드롭</span>
+        </div>
+        <input type="file" id="fileKw" accept=".csv,.xlsx,.xls" hidden>
+      </div>
+    </div>
+    <div id="uploadMsg"></div>
+  </div>
+
+  <!-- 2. SETTINGS -->
+  <div class="card">
+    <h2><span class="n">2</span> 캠페인 설정</h2>
+    <p class="hint">입력값은 브라우저에 저장되어 다음 주차에 그대로 재사용됩니다.</p>
+    <div class="grid g2">
+      <div><label>Client</label><input type="text" id="cClient" placeholder="ALO"></div>
+      <div><label>Campaign Name</label><input type="text" id="cName" placeholder="Evergreen SA Campaign"></div>
+    </div>
+    <div class="grid g4" style="margin-top:12px">
+      <div><label>Campaign Start</label><input type="date" id="cStart"></div>
+      <div><label>Campaign End</label><input type="date" id="cEnd"></div>
+      <div><label>Data Through Date</label><input type="date" id="cThrough"></div>
+      <div><label>Powerlink 캠페인</label><select id="plCampaign"></select></div>
+    </div>
+    <div class="grid g4" style="margin-top:12px">
+      <div><label>Brand Search Budget (KRW)</label><input type="number" id="bBS" min="0" step="1"></div>
+      <div><label>Powerlink Budget (KRW)</label><input type="number" id="bPL" min="0" step="1"></div>
+      <div><label>Brand Search 정액료 · PC (KRW)</label><input type="number" id="feePC" min="0" step="1"></div>
+      <div><label>Brand Search 정액료 · MO (KRW)</label><input type="number" id="feeMO" min="0" step="1"></div>
+    </div>
+    <div class="grid g4" style="margin-top:12px">
+      <div><label>Agency Fee (KRW)</label><input type="number" id="cAgency" min="0" step="1"></div>
+    </div>
+    <p class="hint" style="margin:10px 0 0 0">
+      정액료는 <b>리포팅 기간 전체 금액</b>입니다. Budget은 KRW로 입력하면 환율로 USD 변환되어 표시됩니다.
+    </p>
+  </div>
+
+  <!-- 3. FX -->
+  <div class="card">
+    <h2><span class="n">3</span> 월별 환율 (KRW → USD)</h2>
+    <p class="hint">데이터에 존재하는 월만 표시됩니다. 환율은 자동 조회하지 않으며, 반드시 직접 입력해야 합니다.</p>
+    <div id="fxBox"><p style="color:var(--muted);font-size:12.5px;margin:0">일별 리포트를 업로드하면 필요한 월이 표시됩니다.</p></div>
+  </div>
+
+  <!-- 4. AD GROUP -->
+  <div class="card">
+    <h2><span class="n">4</span> Ad Group 매핑 <span style="font-weight:400;font-size:12px;color:var(--muted)">(Powerlink)</span></h2>
+    <p class="hint">Raw 광고그룹을 <code>Branded / Shoes / Competitors / Generic</code> 4개 표준값으로 정규화합니다.</p>
+    <div id="agBox"><p style="color:var(--muted);font-size:12.5px;margin:0">업로드 후 감지된 광고그룹이 표시됩니다.</p></div>
+  </div>
+
+  <!-- 5. KEYWORD MAP -->
+  <div class="card">
+    <h2><span class="n">5</span> Keyword 매핑 (KO → EN)</h2>
+    <p class="hint" id="kwHint"></p>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="btnKwUpload">매핑 CSV 교체</button>
+      <button class="btn" id="btnKwDownload">현재 매핑 내려받기</button>
+      <button class="btn" id="btnKwReset">기본값으로 되돌리기</button>
+      <input type="file" id="fileKwMap" accept=".csv" hidden>
+    </div>
+    <div id="unmappedBox"></div>
+    <details><summary id="kwSummary">매핑 목록 보기</summary>
+      <div class="scroll" style="margin-top:8px"><table id="kwTable"></table></div>
+    </details>
+  </div>
+
+  <!-- 6. STATUS -->
+  <div class="card">
+    <h2><span class="n">6</span> 데이터 현황</h2>
+    <div id="statusBox"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn btn-danger" id="btnClearData">업로드 데이터 삭제</button>
+      <button class="btn btn-danger" id="btnClearAll">전체 초기화</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  <div id="genMsg" style="font-size:12.5px;color:var(--muted);max-width:640px"></div>
+  <button class="btn-primary" id="btnGenerate" disabled>Excel 리포트 생성</button>
+</div>
+
+<script>
+/* ============================================================
+   ALO Evergreen Weekly Report Generator
+   Single-file tool. All state persists in localStorage.
+   ============================================================ */
+
+const STORE_KEY = 'alo_evergreen_report_v1';
+const GROUPS = ['Branded','Shoes','Competitors','Generic'];
+const DEVICES = ['PC','MO'];
+
+/* ---------- default keyword mapping (embedded) ---------- */
+const DEFAULT_KEYWORD_CSV = `category,keyword_ko,keyword_en
+Branded,알로,Alo
+Branded,ALO,ALO
+Branded,알로요가,Aloyoga
+Branded,aloyoga,aloyoga
+Branded,알로가방,Alo bag
+Branded,알로매장,Alo store
+Branded,ALO매장,ALO store
+Branded,ALO가방,ALO bag
+Branded,알로요가복,Alo yoga wear
+Branded,알로모자,Alo cap
+Branded,알로에코백,Alo eco bag
+Branded,알로바지,Alo pants
+Branded,알로요가매장,Alo yoga store
+Branded,알로집게핀,Alo hair clip
+Branded,알로도산,Alo Dosan
+Branded,알로쇼퍼백,Alo shopper bag
+Branded,ALO모자,ALO cap
+Branded,알로할인코드,Alo discount code
+Branded,ALO요가,ALO yoga
+Branded,알로헤어밴드,Alo headband
+Branded,알로팬츠,Alo pants
+Branded,ALO바지,ALO pants
+Branded,알로후드집업,Alo hoodie zip-up
+Branded,알로양말,Alo socks
+Branded,알로한남,Alo Hannam
+Branded,알로맨투맨,Alo sweatshirt
+Branded,알로바람막이,Alo windbreaker
+Branded,알로요가가방,Alo yoga bag
+Branded,알로토트백,Alo tote bag
+Branded,알로레깅스,Alo leggings
+Branded,알로공홈,Alo official website
+Branded,ALO에코백,ALO eco bag
+Branded,알로백,Alo bag
+Branded,알로나시,Alo sleeveless
+Branded,알로요가할인코드,Alo yoga discount code
+Branded,알로요가백,Alo yoga bag
+Branded,알로패딩,Alo padded jacket
+Branded,알로집업,Alo zip-up
+Branded,알로운동복,Alo activewear
+Branded,알로반바지,Alo shorts
+Branded,알로직구,ALO direct purchase
+Branded,알로트라우저,Alo trousers
+Branded,ALO할인코드,ALO discount code
+Branded,알로후드,Alo hoodie
+Branded,ALO도산,ALO Dosan
+Branded,알로쇼츠,Alo shorts
+Branded,ALO집게핀,ALO hair clip
+Branded,알로요가도산,Alo yoga Dosan
+Branded,알로볼캡,Alo ball cap
+Branded,알로백팩,Alo backpack
+Branded,ALO맨투맨,ALO sweatshirt
+Branded,알로요가바지,Alo yoga pants
+Branded,ALO바람막이,ALO windbreaker
+Branded,ALO양말,ALO socks
+Branded,알로테니스스커트,Alo tennis skirt
+Branded,알로원피스,Alo one-piece
+Branded,알로캡모자,Alo cap hat
+Branded,알로할인,Alo discount
+Branded,알로요가매트,Alo yoga mat
+Branded,알로서울,Alo Seoul
+Branded,알로셋업,Alo setup
+Branded,알로러닝복,Alo running wear
+Branded,알로러닝,Alo running
+Branded,ALO헤어밴드,ALO headband
+Branded,알로탑,Alo top
+Branded,ALO한남,ALO Hannam
+Branded,ALO후드집업,ALO hoodie zip-up
+Branded,알로탱크탑,Alo tank top
+Branded,ALO레깅스,ALO leggings
+Branded,알로셔츠,Alo shirt
+Branded,알로세일,Alo sale
+Branded,알로브라탑,Alo bra top
+Branded,알로자켓,Alo jacket
+Branded,알로반팔,Alo short-sleeve
+Branded,알로트레이닝,Alo training wear
+Branded,알로요가한남,Alo yoga Hannam
+Branded,ALO나시,ALO sleeveless
+Branded,ALO팬츠,ALO pants
+Branded,ALO후드,ALO hoodie
+Branded,알로텀블러,Alo tumbler
+Branded,알로수트업,Alo suit-up
+Branded,ALO요가복,ALO yoga wear
+Branded,ALO토트백,ALO tote bag
+Branded,ALO반팔,ALO short-sleeve
+Branded,ALO쇼퍼백,ALO shopper bag
+Branded,알로스크런치,Alo scrunchie
+Branded,ALO운동복,ALO activewear
+Branded,알로요가토트백,Alo yoga tote bag
+Branded,알로머리끈,Alo hair tie
+Branded,알로요가팬츠,Alo yoga pants
+Branded,알로테니스,Alo tennis
+Branded,알로버킷백,Alo bucket bag
+Branded,알로상의,Alo top wear
+Branded,ALO직구,ALO direct purchase
+Branded,ALO공홈,ALO official website
+Branded,ALO러닝,ALO running
+Branded,알로요가양말,Alo yoga socks
+Branded,알로한국,Alo Korea
+Branded,ALO패딩,ALO padded jacket
+Branded,알로요가쇼퍼백,Alo yoga shopper bag
+Branded,알로지수,Alo Jisoo
+Branded,알로요가할인,Alo yoga discount
+Branded,알로추천,Alo recommendation
+Branded,알로요가모자,Alo yoga cap
+Branded,ALO반바지,ALO shorts
+Branded,ALO집업,ALO zip-up
+Branded,알로온라인,Alo online
+Branded,알로요가집게핀,Alo yoga hair clip
+Branded,ALO트레이닝복,ALO training wear
+Branded,알로요가에코백,Alo yoga eco bag
+Branded,알로요가후드집업,Alo yoga hoodie zip-up
+Branded,ALOYOGA매장,ALO YOGA store
+Branded,ALO백팩,ALO backpack
+Branded,알로치마,Alo skirt
+Branded,알로선바이저,Alo sun visor
+Branded,알로요가바람막이,Alo yoga windbreaker
+Branded,알로요가직구,Alo yoga direct purchase
+Branded,알로오프라인,Alo offline
+Branded,알로후기,Alo review
+Branded,ALO할인,ALO discount
+Branded,ALO셋업,ALO setup
+Branded,알로요가맨투맨,Alo yoga sweatshirt
+Branded,알로필라테스,Alo pilates
+Branded,알로스포츠브라,Alo sports bra
+Branded,ALO탑,ALO top
+Branded,ALO트라우저,ALO trousers
+Branded,ALO자켓,ALO jacket
+Branded,ALO원피스,ALO one-piece
+Branded,알로요가트라우저,Alo yoga trousers
+Branded,알로요가세일,Alo yoga sale
+Branded,알로더플백,Alo duffle bag
+Branded,알로요가헤어밴드,Alo yoga headband
+Branded,ALO쇼츠,ALO shorts
+Branded,알로요가레깅스,Alo yoga leggings
+Branded,ALO백,ALO bag
+Branded,ALO브라탑,ALO bra top
+Branded,알로요가후드,Alo yoga hoodie
+Branded,알로켄달제너,Alo Kendall Jenner
+Branded,ALO서울,ALO Seoul
+Branded,알로요가집업,Alo yoga zip-up
+Branded,ALO세일,ALO sale
+Branded,ALO볼캡,ALO ball cap
+Branded,ALO셔츠,ALO shirt
+Branded,알로진,Alo jeans
+Branded,알로요가공홈,Alo yoga official website
+Branded,ALO텀블러,ALO tumbler
+Branded,알로요가탑,Alo yoga top
+Branded,ALO상의,ALO top wear
+Branded,ALO한국,ALO Korea
+Branded,ALO요가매트,ALO yoga mat
+Branded,알로속옷,Alo underwear
+Branded,ALO머리끈,ALO hair tie
+Branded,ALO치마,ALO skirt
+Shoes,런닝화,Running shoes
+Shoes,운동화,Sneakers
+Shoes,알로스니커즈,Alo sneakers
+Shoes,스니커즈,Sneakers
+Shoes,ALO신발,ALO shoes
+Shoes,알로운동화,Alo sneakers
+Shoes,남성스니커즈,Men's sneakers
+Shoes,남자스니커즈,Men's sneakers
+Shoes,알로신발,Alo shoes
+Shoes,알로선셋스니커즈,Alo Sunset sneakers
+Shoes,여성스니커즈,Women's sneakers
+Shoes,여자스니커즈,Women's sneakers
+Shoes,알로러닝화,Alo running shoes
+Shoes,ALO운동화,ALO sneakers
+Shoes,ALO스니커즈,ALO sneakers
+Shoes,알로러너,Alo runner
+Shoes,ALO러닝화,ALO running shoes
+Shoes,ALO선셋스니커즈,ALO Sunset sneakers
+Shoes,알로요가운동화,Alo Yoga sneakers
+Shoes,알로요가러닝화,Alo Yoga running shoes
+Shoes,알로요가스니커즈,Alo Yoga sneakers
+Shoes,알로요가신발,Alo Yoga shoes
+Shoes,ALORUNNER,ALORUNNER
+Shoes,알로요가선셋스니커즈,Alo Yoga Sunset sneakers
+Shoes,선셋스니커즈,Sunset sneakers
+Shoes,알로슬리퍼,Alo slippers
+Shoes,ALO러너,ALO runner
+Shoes,알로요가러너,Alo Yoga runner
+Shoes,알로 지수,Alo Jisoo
+Shoes,지수운동화,Jisoo sneakers
+Shoes,알로 한정판 운동화,Alo limited edition sneakers
+Shoes,알로선셋스니커즈지수,Alo Sunset sneakers Jisoo
+Shoes,알로지수운동화,Alo Jisoo sneakers
+Shoes,선셋스니커즈신상,Sunset sneakers new arrival
+Shoes,알로선셋스니커즈팝업,Alo Sunset sneakers pop-up
+Shoes,알로팝업,Alo pop-up
+Shoes,알로도산팝업,Alo Dosan pop-up
+Generic,필라테스,Pilates
+Generic,요가,Yoga
+Generic,요가복,Yoga Outfit
+Generic,헤어밴드,Head band
+Generic,러닝복,Running Wear
+Generic,집게핀,Hair Clip
+Generic,운동복,Activewear
+Generic,레깅스,Leggings
+Generic,런닝복,Running Outfit
+Generic,트레이닝복,Training Wear
+Generic,요가바지,Yoga Pants
+Generic,필라테스복,Pilates Outfit
+Generic,필라테스옷,Pilates Clothing
+Generic,홈웨어,Homewear
+Generic,헬스복,Gym Wear
+Generic,탱크탑,Tank Top
+Generic,요가복브랜드,Yoga Wear Brand
+Generic,운동복세트,Workout Set
+Generic,필라테스상의,Pilates Tops
+Generic,여성운동복,Women's Activewear
+Generic,여자운동복,Women's Workout Clothes
+Generic,여성트레이닝복,Women's Training Wear
+Generic,여자헬스복,Women's Gym Wear
+Generic,여성요가복,Women's Yoga Wear
+Generic,필라테스복장,Pilates Wear
+Generic,여자레깅스,Women's Leggings
+Generic,레깅스반바지,Leggings Shorts
+Generic,애슬레저,Athleisure
+Generic,필라테스운동복,Pilates Activewear
+Generic,요가복상의,Yoga Tops
+Generic,스포츠웨어,Sportswear
+Generic,요가복추천,Recommended Yoga Wear
+Generic,요가자격증,Yoga Certificate
+Generic,요가팬츠,Yoga Trousers
+Generic,필라테스바지,Pilates Pants
+Generic,애슬레저룩,Athleisure Look
+Generic,여성운동복세트,Women's Workout Set
+Generic,레깅스브랜드,Leggings Brands
+Generic,필라테스레깅스,Pilates Leggings
+Generic,레깅스트레이닝복,Leggings Training Wear
+Generic,요가복세트,Yoga Set
+Generic,요가브랜드,Yoga Brand
+Generic,요가레깅스,Yoga Leggings
+Generic,필라테스복브랜드,Pilates Clothing Brand
+Generic,요가티셔츠,Yoga T-Shirt
+Generic,에슬레져룩,Esléger Look
+Generic,필라테스옷브랜드,Pilates Clothing Brand
+Generic,스포츠이너웨어,Sports Innerwear
+Generic,에슬레져,Esléger
+Generic,요가강사,Yoga Instructor
+Generic,숏레깅스,Short Leggings
+Generic,요가복바지,Yoga Pants Outfit
+Generic,반팔요가복,Short Sleeve Yoga Wear
+Generic,필라테스복추천,Recommended Pilates Wear
+Generic,여자운동복브랜드,Women's Activewear Brands
+Generic,요가복하의,Yoga Bottoms
+Generic,애슬레저브랜드,Athleisure Brand
+Generic,요가나시,Yoga Tank
+Generic,요가바지추천,Recommended Yoga Pants
+Generic,요가복브랜드추천,Recommended Yoga Wear Brand
+Generic,여름레깅스,Summer Leggings
+Generic,여자레깅스반바지,Women's Leggings Shorts
+Generic,요가가디건,Yoga Cardigan
+Generic,겨울요가복,Winter Yoga wear
+Generic,브라탑운동복,Sports Bra Activewear
+Generic,요가웨어,Yoga Apparel
+Generic,스피닝복장,Spinning Outfit
+Generic,쿨레깅스,Cool Leggings
+Generic,요가옷브랜드,Yoga Clothing Brand
+Generic,요가복나시,Yoga Tank Top
+Generic,요가복반팔,Short Sleeve Yoga Outfit
+Generic,요가크롭티,Yoga Crop Top
+Generic,요가민소매,Yoga Sleeveless
+Generic,여성요가바지,Women's Yoga Pants
+Generic,요가와이드팬츠,Wide Yoga Pants
+Generic,기모레깅스,Fleece-lined leggings
+Generic,겨울레깅스,Winter leggings
+Generic,겨울운동복,Winter activewear
+Competitors,안다르,Andar
+Competitors,룰루레몬,Lululemon
+Competitors,젝시믹스,Xexymix
+Competitors,부디무드라,Budimudra
+Competitors,만두카,Manduka
+Competitors,lululemon,Lululemon
+Competitors,andar,Andar
+Competitors,스토리요가,Stroyyoga
+Competitors,아다놀라,Adanola
+Competitors,xexymix,Xexymix
+Competitors,VUORI,Vuori
+Competitors,ADANOLA,Adanola
+Competitors,부오리,Vuori
+Competitors,SETACTIVE,Setactive
+Branded,알로숏패딩,ALO short padded jacket
+Branded,알로롱패딩,ALO long padded jacket
+Branded,알로니트,ALO knit
+Branded,alo니트,ALO knit
+Branded,alo숏패딩,ALO short padded jacket
+Branded,alo롱패딩,ALO long padded jacket
+Branded,알로아우터,ALO outerwear
+Branded,alo아우터,ALO outerwear
+Branded,알로가디건,ALO cardigan
+Branded,alo가디건,ALO cardigan
+Branded,알로기프트,ALO Gift
+Branded,알로선물,ALO Present
+Branded,알로연말세일,ALO Year and Sale
+Branded,ALO기프트,ALO Gift
+Branded,ALO선물,ALO Present
+Branded,알로기프트카드,ALO Giftcard
+Branded,ALO연말세일,ALO Year and Sale
+Generic,겨울헬스복,Winter gym wear
+Generic,트레이닝세트,Training set
+Generic,요가커버업,Yoga cover-up
+Generic,필라테스옷추천,Recommended Pilates clothing
+Generic,트레이닝복세트,Training wear set
+Generic,여성헬스복,Women's gym wear
+Generic,겨울트레이닝복세트,Winter training wear set
+Generic,필라테스복세트,Pilates outfit set
+Generic,겨울트레이닝세트,Winter training set
+Generic,겨울요가바지,Winter yoga pants
+Generic,겨울트레이닝복,Winter training wear
+Generic,츄리닝세트,Tracksuit set
+Generic,요가상의,Yoga tops
+Generic,연예인요가복,Celebrity yoga wear
+Branded,ALO웰니스클럽,ALO wellness club
+Branded,알로웰니스클럽,ALO wellness club`;
+
+/* ---------- state ---------- */
+function blankState(){
+  return {
+    campaign : { client:'ALO', name:'Evergreen SA Campaign', start:'', end:'', through:'',
+                 budgetBS:null, budgetPL:null, agencyFee:null, plCampaign:'' },
+    bsFixedFee : { pc:null, mo:null },
+    fxRates : {},
+    keywordMap : parseKeywordCsv(DEFAULT_KEYWORD_CSV),
+    keywordMapIsDefault : true,
+    adGroupMap : {},
+    rawDaily : [],
+    rawKeyword : [],
+    meta : { dailyFile:'', keywordFile:'', uploadedAt:'', dataThrough:'' }
+  };
+}
+let S = blankState();
+
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+  catch(e){ showMsg('uploadMsg','err','localStorage 저장 실패: '+e.message+' — 데이터가 너무 큽니다. 이전 데이터를 삭제해 주세요.'); }
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return;
+    const o = JSON.parse(raw);
+    S = Object.assign(blankState(), o);
+    S.campaign  = Object.assign(blankState().campaign, o.campaign||{});
+    S.bsFixedFee= Object.assign({pc:null,mo:null}, o.bsFixedFee||{});
+    if(!Array.isArray(S.keywordMap) || !S.keywordMap.length) S.keywordMap = parseKeywordCsv(DEFAULT_KEYWORD_CSV);
+  }catch(e){ console.warn('load failed',e); }
+}
+
+/* ---------- small utils ---------- */
+const $ = id => document.getElementById(id);
+const num = v => { const n = Number(String(v??'').replace(/[, \s]/g,'')); return isFinite(n)?n:0; };
+const fmtInt = n => Math.round(n).toLocaleString('en-US');
+const fmtUsd = (n,d=2) => '$'+n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = (a,b) => b>0 ? (a/b) : 0;
+function showMsg(box,kind,html){ $(box).innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : ''; }
+function normKey(s){ return String(s??'').replace(/[\s ]/g,'').toLowerCase(); }
+
+/* ---------- keyword mapping csv ---------- */
+function parseKeywordCsv(text){ return parseKeywordRows(splitCsv(text)); }
+function parseKeywordRows(rows){
+  const out = [];
+  for(let i=0;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || r.length<2) continue;
+    const a=(r[0]||'').trim(), b=(r[1]||'').trim(), c=(r[2]||'').trim();
+    if(i===0 && /category/i.test(a)) continue;      // header
+    if(!b) continue;
+    out.push({ category:a, ko:b, en:c||b });
+  }
+  return out;
+}
+function keywordLookup(){
+  const m = new Map(); const conflicts = [];
+  for(const row of S.keywordMap){
+    const k = normKey(row.ko);
+    if(m.has(k)){ if(m.get(k) !== row.en) conflicts.push(row.ko); continue; }
+    m.set(k, row.en);
+  }
+  return { map:m, conflicts };
+}
+
+/* ---------- CSV / XLSX reading ---------- */
+function splitCsv(text){
+  // minimal RFC4180 splitter (handles quoted fields + embedded commas/newlines)
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cell); cell=''; }
+      else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+      else if(ch==='\r'){ /* skip */ }
+      else cell+=ch;
+    }
+  }
+  if(cell!=='' || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+function decodeBuffer(buf){
+  const b = new Uint8Array(buf);
+  if(b[0]===0xEF && b[1]===0xBB && b[2]===0xBF)
+    return new TextDecoder('utf-8').decode(b.subarray(3));
+  const utf = new TextDecoder('utf-8').decode(b);
+  if(utf.indexOf('�') === -1) return utf;
+  try{ return new TextDecoder('euc-kr').decode(b); }catch(e){ return utf; }
+}
+function readFile(file){
+  return new Promise((res,rej)=>{
+    const fr = new FileReader();
+    fr.onerror = ()=>rej(new Error('파일을 읽을 수 없습니다.'));
+    fr.onload = ()=>{
+      try{
+        const buf = fr.result;
+        if(/\.xlsx?$/i.test(file.name)){
+          const wb = XLSX.read(new Uint8Array(buf), {type:'array'});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          res(XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}));
+        }else{
+          res(splitCsv(decodeBuffer(buf)));
+        }
+      }catch(e){ rej(e); }
+    };
+    fr.readAsArrayBuffer(file);
+  });
+}
+
+/* ---------- column mapping ---------- */
+const ALIASES = {
+  media  : ['캠페인유형','캠페인 유형','campaigntype','campaign type','매체유형'],
+  campaign:['캠페인','캠페인명','campaign','campaignname'],
+  adGroup: ['광고그룹','광고 그룹','adgroup','ad group','그룹'],
+  device : ['pc/모바일매체','pc/모바일 매체','pc/모바일','디바이스','device','매체'],
+  date   : ['일별','날짜','일자','date','기간'],
+  keyword: ['키워드','검색어','keyword'],
+  imp    : ['노출수','노출','impression','impressions','imp'],
+  click  : ['클릭수','클릭','click','clicks'],
+  cost   : ['총비용','비용','cost','spend','광고비']
+};
+function mapColumns(header){
+  const idx = {};
+  const norm = header.map(h => normKey(h).replace(/[()%]/g,''));
+  for(const [std,list] of Object.entries(ALIASES)){
+    for(const alias of list){
+      const a = normKey(alias).replace(/[()%]/g,'');
+      const i = norm.indexOf(a);
+      if(i !== -1){ idx[std]=i; break; }
+    }
+  }
+  return idx;
+}
+
+/* ---------- value normalization ---------- */
+function normDate(v){
+  const s = String(v??'').trim();
+  let m = s.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(s);
+  if(!isNaN(d)) return d.toISOString().slice(0,10);
+  return '';
+}
+function normDevice(v){
+  const s = normKey(v);
+  if(s==='pc') return 'PC';
+  if(s==='모바일'||s==='mobile'||s==='mo'||s==='m') return 'MO';
+  return '';
+}
+function normMedia(v){
+  const s = String(v??'');
+  if(s.indexOf('브랜드검색')>=0 || s.indexOf('신제품검색')>=0) return 'BS';
+  if(s.indexOf('파워링크')>=0) return 'PL';
+  return '';
+}
+function inferGroup(adGroup){
+  const s = String(adGroup??'').replace(/^(PC|MO|MOBILE)[_\-\s]/i,'');
+  const k = s.toLowerCase();
+  if(/compet|comp\b/.test(k)) return 'Competitors';
+  if(/shoe/.test(k))          return 'Shoes';
+  if(/brand/.test(k))         return 'Branded';
+  if(/general|generic/.test(k))return 'Generic';
+  return '';
+}
+
+/* ---------- ingest ---------- */
+function ingest(rows, kind, fileName){
+  if(!rows || rows.length < 2) throw new Error('데이터 행이 없습니다.');
+  // Naver exports put a title on line 1 and the header on line 2.
+  let hIdx = 0, idx = mapColumns(rows[0]);
+  const needed = kind==='daily' ? ['media','campaign','adGroup','device','date','imp','click','cost']
+                                : ['media','campaign','adGroup','device','keyword','imp','click'];
+  const ok = m => needed.every(n => m[n] !== undefined);
+  if(!ok(idx) && rows.length>2){ hIdx = 1; idx = mapColumns(rows[1]); }
+  if(!ok(idx)){
+    const missing = needed.filter(n => idx[n]===undefined);
+    throw new Error('필수 컬럼을 찾지 못했습니다: <b>'+missing.join(', ')+'</b><br>'+
+                    '인식된 헤더: <code>'+(rows[hIdx]||[]).join(' | ')+'</code>');
+  }
+  const out=[], badDevice=new Set();
+  for(let i=hIdx+1;i<rows.length;i++){
+    const r = rows[i]; if(!r || !r.length) continue;
+    const media = normMedia(r[idx.media]); if(!media) continue;
+    const device = normDevice(r[idx.device]);
+    if(!device){ if(String(r[idx.device]??'').trim()) badDevice.add(r[idx.device]); continue; }
+    const rec = {
+      media, campaign:String(r[idx.campaign]??'').trim(),
+      adGroup:String(r[idx.adGroup]??'').trim(), device,
+      imp:num(r[idx.imp]), click:num(r[idx.click])
+    };
+    if(kind==='daily'){
+      rec.date = normDate(r[idx.date]); if(!rec.date) continue;
+      rec.cost = num(r[idx.cost]);
+    }else{
+      rec.keyword = String(r[idx.keyword]??'').trim(); if(!rec.keyword) continue;
+    }
+    out.push(rec);
+  }
+  if(!out.length) throw new Error('유효한 데이터 행을 찾지 못했습니다.');
+  return { rows:out, badDevice:[...badDevice], fileName };
+}
+
+/* ---------- aggregation model ---------- */
+function distinct(arr){ return [...new Set(arr)]; }
+
+function buildModel(){
+  const plCamp = S.campaign.plCampaign;
+  const bsDaily = S.rawDaily.filter(r=>r.media==='BS');
+  const plDaily = S.rawDaily.filter(r=>r.media==='PL' && (!plCamp || r.campaign===plCamp));
+  const bsKw    = S.rawKeyword.filter(r=>r.media==='BS');
+  const plKw    = S.rawKeyword.filter(r=>r.media==='PL' && (!plCamp || r.campaign===plCamp));
+
+  const through = S.campaign.through || S.meta.dataThrough;
+  const inRange = r => (!S.campaign.start || r.date>=S.campaign.start) && (!through || r.date<=through);
+
+  /* --- Brand Search daily: aggregate (date,device), then inject fixed fee --- */
+  const bsRows = bsDaily.filter(inRange);
+  const bsAgg = new Map();
+  for(const r of bsRows){
+    const k = r.date+'|'+r.device;
+    const a = bsAgg.get(k) || {date:r.date, device:r.device, imp:0, click:0, costKRW:0};
+    a.imp+=r.imp; a.click+=r.click; a.costKRW+=r.cost;
+    bsAgg.set(k,a);
+  }
+  // fixed-fee distribution, per device, over that device's own active days
+  for(const dev of DEVICES){
+    const fee = dev==='PC' ? num(S.bsFixedFee.pc) : num(S.bsFixedFee.mo);
+    const days = [...bsAgg.values()].filter(a=>a.device===dev).map(a=>a.date).sort();
+    if(!days.length || !fee) continue;
+    const per = Math.floor(fee/days.length);
+    days.forEach((d,i)=>{
+      const a = bsAgg.get(d+'|'+dev);
+      a.costKRW = (i===days.length-1) ? fee-per*(days.length-1) : per;
+    });
+  }
+
+  /* --- Powerlink daily --- */
+  const plRows = plDaily.filter(inRange);
+  const plAgg = new Map(), plGrpAgg = new Map();
+  const unmappedGroups = new Set();
+  for(const r of plRows){
+    const k = r.date+'|'+r.device;
+    const a = plAgg.get(k) || {date:r.date, device:r.device, imp:0, click:0, costKRW:0};
+    a.imp+=r.imp; a.click+=r.click; a.costKRW+=r.cost; plAgg.set(k,a);
+
+    const g = S.adGroupMap[r.adGroup];
+    if(!g){ unmappedGroups.add(r.adGroup); continue; }
+    const gk = r.date+'|'+g+'|'+r.device;
+    const b = plGrpAgg.get(gk) || {date:r.date, group:g, device:r.device, imp:0, click:0, costKRW:0};
+    b.imp+=r.imp; b.click+=r.click; b.costKRW+=r.cost; plGrpAgg.set(gk,b);
+  }
+
+  /* --- keywords --- */
+  const { map:kwMap } = keywordLookup();
+  const unmappedKw = new Map();
+  const enOf = ko => {
+    const v = kwMap.get(normKey(ko));
+    if(v) return v;
+    return '[UNMAPPED]';
+  };
+  function aggKw(rows, withGroup){
+    const m = new Map();
+    for(const r of rows){
+      const g = withGroup ? S.adGroupMap[r.adGroup] : null;
+      if(withGroup && !g) continue;
+      const k = (withGroup? g+'|':'') + r.device+'|'+r.keyword;
+      const a = m.get(k) || {group:g, device:r.device, ko:r.keyword, imp:0, click:0};
+      a.imp+=r.imp; a.click+=r.click; m.set(k,a);
+    }
+    const out=[];
+    for(const a of m.values()){
+      if(a.imp<=0 && a.click<=0) continue;      // rule: keep only Imp>0 or Click>0
+      a.en = enOf(a.ko);
+      if(a.en==='[UNMAPPED]'){
+        const u = unmappedKw.get(a.ko) || 0; unmappedKw.set(a.ko, u+a.imp);
+      }
+      out.push(a);
+    }
+    out.sort((x,y)=> y.imp-x.imp || x.ko.localeCompare(y.ko));
+    return out;
+  }
+  const bsKeywords = aggKw(bsKw, false);
+  const plKeywords = aggKw(plKw, true);
+
+  /* --- currency --- */
+  const missingFx = new Set();
+  const usd = (krw, date) => {
+    const m = date.slice(0,7);
+    const rate = num(S.fxRates[m]);
+    if(!rate){ missingFx.add(m); return 0; }
+    return krw/rate;
+  };
+  const toDaily = agg => {
+    const dates = distinct([...agg.values()].map(a=>a.date)).sort();
+    return dates.map(d=>{
+      const row = {date:d};
+      for(const dev of DEVICES){
+        const a = agg.get(d+'|'+dev) || {imp:0,click:0,costKRW:0};
+        row[dev] = { imp:a.imp, click:a.click, cost:usd(a.costKRW,d) };
+      }
+      return row;
+    });
+  };
+  const bsDailyOut = toDaily(bsAgg);
+  const plDailyOut = toDaily(plAgg);
+  const plGroupOut = {};
+  for(const g of GROUPS){
+    const sub = new Map();
+    for(const [k,v] of plGrpAgg) if(v.group===g) sub.set(v.date+'|'+v.device, v);
+    plGroupOut[g] = toDaily(sub);
+  }
+
+  const budgetUsd = krw => {
+    const m = (S.campaign.start || Object.keys(S.fxRates).sort()[0] || '').slice(0,7);
+    const rate = num(S.fxRates[m]) || num(Object.values(S.fxRates)[0]);
+    return rate ? krw/rate : 0;
+  };
+
+  return {
+    bsDaily:bsDailyOut, plDaily:plDailyOut, plGroup:plGroupOut,
+    bsKeywords, plKeywords,
+    budgetBS: budgetUsd(num(S.campaign.budgetBS)),
+    budgetPL: budgetUsd(num(S.campaign.budgetPL)),
+    agencyFee: budgetUsd(num(S.campaign.agencyFee)),
+    through, unmappedGroups:[...unmappedGroups], unmappedKw,
+    missingFx:[...missingFx]
+  };
+}
+
+/* ============================================================
+   EXCEL BUILDER
+   ============================================================ */
+const NAVY='FF1F3864', HDR2='FF2F4F8F', BAND='FFD9E2F3', SUBTOT='FFF2F2F2', TOTROW='FFDCE3F0';
+const BLK  = { total:'FF1F3864', pc:'FF2E5395', mo:'FF4472C4' };   // device-block header colours
+const BLK2 = { total:'FF35548C', pc:'FF4A6FAE', mo:'FF6A8FD4' };   // sub-header, one tint lighter
+const GROUP_FILL = { Branded:'FFDDEBF7', Shoes:'FFE2EFDA', Competitors:'FFFCE4D6', Generic:'FFFFF2CC' };
+const NF_INT='#,##0', NF_PCT='0.00%', NF_USD0='"$"#,##0', NF_USD2='"$"#,##0.00';
+const THIN={style:'thin',color:{argb:'FFBFC7D6'}};
+const MED ={style:'medium',color:{argb:'FF1F3864'}};
+const BOX={top:THIN,left:THIN,bottom:THIN,right:THIN};
+
+function colL(n){ let s=''; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-m-1)/26; } return s; }
+
+function styleHeader(ws,row,c1,c2,fill){
+  for(let c=c1;c<=c2;c++){
+    const cell = ws.getCell(row,c);
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill}};
+    cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10.5};
+    cell.alignment={horizontal:'center',vertical:'middle'};
+    cell.border=BOX;
+  }
+}
+function titleBand(ws,row,c1,c2,text,fill,color){
+  ws.mergeCells(row,c1,row,c2);
+  const cell=ws.getCell(row,c1);
+  cell.value=text;
+  cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill||BAND}};
+  cell.font={bold:true,size:11,color:{argb:color||'FF1F3864'}};
+  cell.alignment={horizontal:'left',vertical:'middle',indent:1};
+  cell.border=BOX;
+  ws.getRow(row).height=20;
+}
+
+/* Vertical separators that make Total | PC | MO read as three distinct blocks. */
+function blockBorder(c,extra){
+  const b={top:THIN,left:THIN,bottom:THIN,right:THIN};
+  if(c===1||c===2||c===6||c===10) b.left=MED;
+  if(c===1||c===5||c===9||c===13) b.right=MED;
+  return extra?Object.assign(b,extra):b;
+}
+
+/* --- 13-column daily block: Date + Total/PC/MO x (Imp,Click,Cost,CTR)
+       TOTAL row sits directly under the header, then the dates.        --- */
+function dailyBlock(ws, startRow, label, rows){
+  const r1=startRow, r2=startRow+1;
+  ws.mergeCells(r1,1,r2,1); ws.getCell(r1,1).value='Date';
+  const blocks=[[label+'_Total',2,'total'],[label+'_PC',6,'pc'],[label+'_MO',10,'mo']];
+  for(const b of blocks){ ws.mergeCells(r1,b[1],r1,b[1]+3); ws.getCell(r1,b[1]).value=b[0]; }
+  ['Imp','Click','Cost','CTR'].forEach((h,i)=>{
+    for(const b of blocks) ws.getCell(r2,b[1]+i).value=h;
+  });
+  for(const row of [r1,r2]){
+    const pal = row===r1?BLK:BLK2;
+    ws.getCell(row,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:BLK.total}};
+    for(const b of blocks)
+      for(let i=0;i<4;i++)
+        ws.getCell(row,b[1]+i).fill={type:'pattern',pattern:'solid',fgColor:{argb:pal[b[2]]}};
+    for(let c=1;c<=13;c++){
+      const cell=ws.getCell(row,c);
+      cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10.5};
+      cell.alignment={horizontal:'center',vertical:'middle'};
+      cell.border=blockBorder(c);
+    }
+    ws.getRow(row).height=18;
+  }
+
+  const tr=r2+1, first=tr+1;
+  let r=first;
+  for(const d of rows){
+    ws.getCell(r,1).value=d.date;
+    ws.getCell(r,6).value=d.PC.imp;  ws.getCell(r,7).value=d.PC.click;  ws.getCell(r,8).value=d.PC.cost;
+    ws.getCell(r,10).value=d.MO.imp; ws.getCell(r,11).value=d.MO.click; ws.getCell(r,12).value=d.MO.cost;
+    ws.getCell(r,2).value={formula:`F${r}+J${r}`};
+    ws.getCell(r,3).value={formula:`G${r}+K${r}`};
+    ws.getCell(r,4).value={formula:`H${r}+L${r}`};
+    ws.getCell(r,5).value ={formula:`IFERROR(C${r}/B${r},0)`};
+    ws.getCell(r,9).value ={formula:`IFERROR(G${r}/F${r},0)`};
+    ws.getCell(r,13).value={formula:`IFERROR(K${r}/J${r},0)`};
+    r++;
+  }
+  const last=r-1;
+
+  ws.getCell(tr,1).value='TOTAL';
+  if(rows.length){
+    for(const c of [2,3,4,6,7,8,10,11,12])
+      ws.getCell(tr,c).value={formula:`SUM(${colL(c)}${first}:${colL(c)}${last})`};
+    ws.getCell(tr,5).value ={formula:`IFERROR(C${tr}/B${tr},0)`};
+    ws.getCell(tr,9).value ={formula:`IFERROR(G${tr}/F${tr},0)`};
+    ws.getCell(tr,13).value={formula:`IFERROR(K${tr}/J${tr},0)`};
+  }else{
+    ws.mergeCells(tr,2,tr,13);
+    ws.getCell(tr,2).value='No data';
+    ws.getCell(tr,2).alignment={horizontal:'center'};
+  }
+
+  for(let rr=tr; rr<=Math.max(last,tr); rr++){
+    for(let c=1;c<=13;c++){
+      const cell=ws.getCell(rr,c);
+      cell.border=blockBorder(c);
+      if(c>=2){
+        const off=(c-2)%4;
+        cell.numFmt = (off===0||off===1)?NF_INT : (off===2?NF_USD2:NF_PCT);
+      }
+      if(rr===tr){
+        cell.font={bold:true};
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOTROW}};
+        cell.border=blockBorder(c,{bottom:MED});
+      }
+    }
+    ws.getCell(rr,1).alignment={horizontal:'center'};
+  }
+  return { headerRow:r1, totalRow:tr, firstRow:first, lastRow:last, nextRow:Math.max(last,tr)+1 };
+}
+
+/* --- Overview block (10 cols) --- */
+function overviewBlock(ws,startRow,mediaName,budgetUsd,dailyTotalRow){
+  const hdr=['Media Name','Campaign Period','Data Through Date','Budget','Spent',
+             'Impression','Click','CTR','CPC','CPM'];
+  hdr.forEach((h,i)=> ws.getCell(startRow,i+1).value=h);
+  styleHeader(ws,startRow,1,10,NAVY);
+  const r=startRow+1;
+  ws.getCell(r,1).value=mediaName;
+  ws.getCell(r,2).value=(S.campaign.start||'?')+' ~ '+(S.campaign.end||'?');
+  ws.getCell(r,3).value=S.campaign.through||S.meta.dataThrough||'';
+  ws.getCell(r,4).value=budgetUsd;
+  ws.getCell(r,5).value={formula:`D${dailyTotalRow}`};
+  ws.getCell(r,6).value={formula:`B${dailyTotalRow}`};
+  ws.getCell(r,7).value={formula:`C${dailyTotalRow}`};
+  ws.getCell(r,8).value={formula:`IFERROR(G${r}/F${r},0)`};
+  ws.getCell(r,9).value={formula:`IFERROR(E${r}/G${r},0)`};
+  ws.getCell(r,10).value={formula:`IFERROR(E${r}/F${r}*1000,0)`};
+  ws.getCell(r,4).numFmt=NF_USD0; ws.getCell(r,5).numFmt=NF_USD0;
+  ws.getCell(r,6).numFmt=NF_INT;  ws.getCell(r,7).numFmt=NF_INT;
+  ws.getCell(r,8).numFmt=NF_PCT;  ws.getCell(r,9).numFmt=NF_USD2; ws.getCell(r,10).numFmt=NF_USD2;
+  for(let c=1;c<=10;c++){
+    const cell=ws.getCell(r,c); cell.border=BOX; cell.font={bold:true};
+    if(c<=3) cell.alignment={horizontal:'center'};
+  }
+  ws.getRow(r).height=20;
+  return { row:r, nextRow:r+1 };
+}
+
+/* --- keyword tables: PC = cols 1-5, spacer = col 6, MO = cols 7-11 --- */
+const MO_OFF = 6;   // first MO column
+function keywordHeader(ws,row,label){
+  ws.mergeCells(row,1,row,5);  ws.getCell(row,1).value=label+'_PC';
+  ws.mergeCells(row,7,row,11); ws.getCell(row,7).value=label+'_MO';
+  styleHeader(ws,row,1,5,BLK.pc);
+  styleHeader(ws,row,7,11,BLK.mo);
+  const r2=row+1;
+  ['Keyword (EN)','Keyword (KO)','Imp','Click','CTR'].forEach((h,i)=>{
+    ws.getCell(r2,i+1).value=h; ws.getCell(r2,i+7).value=h;
+  });
+  styleHeader(ws,r2,1,5,BLK2.pc);
+  styleHeader(ws,r2,7,11,BLK2.mo);
+  return r2+1;
+}
+function kwFmt(cell,c){
+  if(c===3||c===4||c===9||c===10) cell.numFmt=NF_INT;
+  if(c===5||c===11) cell.numFmt=NF_PCT;
+}
+function keywordRows(ws,startRow,pcList,moList){
+  const n=Math.max(pcList.length,moList.length);
+  let r=startRow;
+  for(let i=0;i<n;i++){
+    const p=pcList[i], m=moList[i];
+    if(p){ ws.getCell(r,1).value=p.en; ws.getCell(r,2).value=p.ko;
+           ws.getCell(r,3).value=p.imp; ws.getCell(r,4).value=p.click;
+           ws.getCell(r,5).value={formula:`IFERROR(D${r}/C${r},0)`}; }
+    if(m){ ws.getCell(r,7).value=m.en; ws.getCell(r,8).value=m.ko;
+           ws.getCell(r,9).value=m.imp; ws.getCell(r,10).value=m.click;
+           ws.getCell(r,11).value={formula:`IFERROR(J${r}/I${r},0)`}; }
+    for(const c of [1,2,3,4,5,7,8,9,10,11]){
+      const cell=ws.getCell(r,c);
+      cell.border=BOX; kwFmt(cell,c);
+    }
+    r++;
+  }
+  return { firstRow:startRow, lastRow:r-1, nextRow:r, count:n };
+}
+function keywordTotalRow(ws,r,label,first,last,hasRows,dark){
+  ws.getCell(r,1).value=label;  ws.mergeCells(r,1,r,2);
+  ws.getCell(r,7).value=label;  ws.mergeCells(r,7,r,8);
+  if(hasRows){
+    for(const c of [3,4,9,10]) ws.getCell(r,c).value={formula:`SUM(${colL(c)}${first}:${colL(c)}${last})`};
+    ws.getCell(r,5).value ={formula:`IFERROR(D${r}/C${r},0)`};
+    ws.getCell(r,11).value={formula:`IFERROR(J${r}/I${r},0)`};
+  }
+  for(const c of [1,2,3,4,5,7,8,9,10,11]){
+    const cell=ws.getCell(r,c);
+    cell.font={bold:true,color:{argb:dark?'FFFFFFFF':'FF1F3864'}};
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:dark?NAVY:TOTROW}};
+    cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
+    kwFmt(cell,c);
+  }
+  return r+1;
+}
+
+function setWidths(ws,arr){ arr.forEach((w,i)=> ws.getColumn(i+1).width=w); }
+
+async function buildWorkbook(M){
+  const wb = new ExcelJS.Workbook();
+  wb.creator='ALO Evergreen Weekly Report Generator';
+  wb.created=new Date();
+
+  const wsOverall = wb.addWorksheet('Overall');
+  const wsBS      = wb.addWorksheet('Brand Search');
+  const wsBSK     = wb.addWorksheet('Brand Search Keywords');
+  const wsPL      = wb.addWorksheet('Powerlink');
+  const wsPLK     = wb.addWorksheet('Powerlink Keywords');
+  const period    = (S.campaign.start||'?')+' ~ '+(S.campaign.end||'?');
+
+  /* ================= Sheet 2: Brand Search ================= */
+  setWidths(wsBS,[12,11,10,12,9,11,10,12,9,11,10,12,9]);
+  titleBand(wsBS,1,1,13,'Brand Search',NAVY,'FFFFFFFF');
+  titleBand(wsBS,3,1,10,'Overview');
+  const bsBlk = dailyBlock(wsBS,8,'Brand Search',M.bsDaily);
+  titleBand(wsBS,7,1,13,'Daily Breakdown');
+  const bsOv = overviewBlock(wsBS,4,'Brand Search',M.budgetBS,bsBlk.totalRow);
+  wsBS.views=[{state:'frozen',xSplit:1,ySplit:bsBlk.totalRow}];
+
+  /* ================= Sheet 3: Brand Search Keywords ================= */
+  setWidths(wsBSK,[26,20,11,10,10, 3, 26,20,11,10,10]);
+  titleBand(wsBSK,1,1,11,'Brand Search Keywords',NAVY,'FFFFFFFF');
+  titleBand(wsBSK,3,1,11,'Keyword Breakdown by Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
+  const bsKrStart = keywordHeader(wsBSK,4,'Brand Search');
+  const bsPC = M.bsKeywords.filter(k=>k.device==='PC');
+  const bsMO = M.bsKeywords.filter(k=>k.device==='MO');
+  const bsKb = keywordRows(wsBSK,bsKrStart,bsPC,bsMO);
+  keywordTotalRow(wsBSK,bsKb.nextRow,'TOTAL',bsKb.firstRow,bsKb.lastRow,bsKb.count>0,true);
+  wsBSK.views=[{state:'frozen',ySplit:5}];
+
+  /* ================= Sheet 4: Powerlink ================= */
+  setWidths(wsPL,[12,11,10,12,9,11,10,12,9,11,10,12,9]);
+  titleBand(wsPL,1,1,13,'Powerlink',NAVY,'FFFFFFFF');
+  titleBand(wsPL,3,1,10,'Overview');
+  const plBlk = dailyBlock(wsPL,8,'Powerlink',M.plDaily);
+  titleBand(wsPL,7,1,13,'Daily Breakdown');
+  overviewBlock(wsPL,4,'Powerlink',M.budgetPL,plBlk.totalRow);
+
+  let pr = plBlk.nextRow+1;
+  titleBand(wsPL,pr,1,13,'Daily Breakdown by Keyword Group'); pr+=2;
+  const groupTotalRows=[];
+  for(const g of GROUPS){
+    titleBand(wsPL,pr,1,13,g,GROUP_FILL[g]); pr++;
+    const blk = dailyBlock(wsPL,pr,g,M.plGroup[g]||[]);
+    if((M.plGroup[g]||[]).length) groupTotalRows.push(blk.totalRow);
+    pr = blk.nextRow+1;
+  }
+  if(groupTotalRows.length) ws_check(wsPL,pr,groupTotalRows,plBlk.totalRow);
+  wsPL.views=[{state:'frozen',xSplit:1,ySplit:plBlk.totalRow}];
+
+  /* ================= Sheet 5: Powerlink Keywords ================= */
+  setWidths(wsPLK,[26,20,11,10,10, 3, 26,20,11,10,10]);
+  titleBand(wsPLK,1,1,11,'Powerlink Keywords',NAVY,'FFFFFFFF');
+  titleBand(wsPLK,3,1,11,'Keyword Breakdown by Ad Group & Device  ·  '+(S.campaign.start||'')+' ~ '+(M.through||''));
+  let kr = keywordHeader(wsPLK,4,'Powerlink');
+  const subFirst=[], subLast=[];
+  for(const g of GROUPS){
+    titleBand(wsPLK,kr,1,5,g,GROUP_FILL[g]);
+    titleBand(wsPLK,kr,7,11,g,GROUP_FILL[g]);
+    kr++;
+    const pc = M.plKeywords.filter(k=>k.group===g && k.device==='PC');
+    const mo = M.plKeywords.filter(k=>k.group===g && k.device==='MO');
+    if(!pc.length && !mo.length){
+      for(const c1 of [1,7]){
+        wsPLK.mergeCells(kr,c1,kr,c1+4);
+        wsPLK.getCell(kr,c1).value='No data';
+        wsPLK.getCell(kr,c1).alignment={horizontal:'center'};
+        wsPLK.getCell(kr,c1).border=BOX;
+      }
+      kr+=2; continue;
+    }
+    const blk = keywordRows(wsPLK,kr,pc,mo);
+    subFirst.push(blk.firstRow); subLast.push(blk.lastRow);
+    kr = keywordTotalRow(wsPLK,blk.nextRow,g+' Subtotal',blk.firstRow,blk.lastRow,true,false);
+    kr++;   // blank separator row between ad groups
+  }
+  if(subFirst.length){
+    const gr=kr;
+    wsPLK.getCell(gr,1).value='GRAND TOTAL'; wsPLK.mergeCells(gr,1,gr,2);
+    wsPLK.getCell(gr,7).value='GRAND TOTAL'; wsPLK.mergeCells(gr,7,gr,8);
+    for(const c of [3,4,9,10]){
+      const parts = subFirst.map((f,i)=>`SUM(${colL(c)}${f}:${colL(c)}${subLast[i]})`);
+      wsPLK.getCell(gr,c).value={formula:parts.join('+')};
+    }
+    wsPLK.getCell(gr,5).value ={formula:`IFERROR(D${gr}/C${gr},0)`};
+    wsPLK.getCell(gr,11).value={formula:`IFERROR(J${gr}/I${gr},0)`};
+    for(const c of [1,2,3,4,5,7,8,9,10,11]){
+      const cell=wsPLK.getCell(gr,c);
+      cell.font={bold:true,color:{argb:'FFFFFFFF'}};
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+      cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
+      kwFmt(cell,c);
+    }
+  }
+  wsPLK.views=[{state:'frozen',ySplit:5}];
+
+  /* ================= Sheet 1: Overall ================= */
+  setWidths(wsOverall,[22,26,12,17,14,14,14,12,10,10,11]);
+  titleBand(wsOverall,1,1,11,'ALO — Evergreen SA Campaign Weekly Report',NAVY,'FFFFFFFF');
+
+  const MSH=13, MS_BS=14, MS_PL=15, MS_TOT=16;   // Media Summary rows
+  titleBand(wsOverall,3,1,11,'Campaign Information');
+  const fxTxt = Object.keys(S.fxRates).sort()
+      .map(m=>'1 USD = '+num(S.fxRates[m]).toLocaleString('en-US')+' KRW ('+m+')').join('   |   ');
+  const info=[
+    ['Client',             S.campaign.client||'ALO',                    null],
+    ['Campaign',           S.campaign.name||'Evergreen SA Campaign',    null],
+    ['Period',             period,                                      null],
+    ['Total Spent',        {formula:`F${MS_TOT}`},                      NF_USD2],
+    ['Advertising Budget', {formula:`E${MS_TOT}`},                      NF_USD2],
+    ['Agency Fee',         M.agencyFee,                                 NF_USD2],
+    ['Exchange Rate',      fxTxt,                                       null]
+  ];
+  info.forEach((it,i)=>{
+    const r=4+i;
+    wsOverall.getCell(r,1).value=it[0];
+    wsOverall.getCell(r,1).font={bold:true,size:10.5};
+    wsOverall.getCell(r,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+    wsOverall.getCell(r,1).alignment={vertical:'middle',indent:1};
+    wsOverall.mergeCells(r,2,r,4);
+    wsOverall.getCell(r,2).value=it[1];
+    if(it[2]) wsOverall.getCell(r,2).numFmt=it[2];
+    wsOverall.getCell(r,2).alignment={horizontal:it[2]?'right':'left',vertical:'middle',indent:1};
+    for(let c=1;c<=4;c++) wsOverall.getCell(r,c).border=BOX;
+    wsOverall.getRow(r).height=17;
+  });
+
+  titleBand(wsOverall,MSH-1,1,11,'Media Summary');
+  ['Campaign','Period','Media','Ad','Budget','Spent','Impression','Click','CTR','CPC','CPM']
+    .forEach((h,i)=> wsOverall.getCell(MSH,i+1).value=h);
+  styleHeader(wsOverall,MSH,1,11,NAVY);
+
+  // repeated Campaign / Period / Media values are merged across the two media rows
+  wsOverall.mergeCells(MS_BS,1,MS_PL,1); wsOverall.getCell(MS_BS,1).value=S.campaign.name||'Evergreen';
+  wsOverall.mergeCells(MS_BS,2,MS_PL,2); wsOverall.getCell(MS_BS,2).value=period;
+  wsOverall.mergeCells(MS_BS,3,MS_PL,3); wsOverall.getCell(MS_BS,3).value='Naver';
+  const media=[[MS_BS,'Brand Search',"'Brand Search'!"],[MS_PL,'Powerlink',"'Powerlink'!"]];
+  for(const m of media){
+    const r=m[0], ref=m[2], ov=bsOv.row;
+    wsOverall.getCell(r,4).value=m[1];
+    wsOverall.getCell(r,5).value={formula:`${ref}D${ov}`};
+    wsOverall.getCell(r,6).value={formula:`${ref}E${ov}`};
+    wsOverall.getCell(r,7).value={formula:`${ref}F${ov}`};
+    wsOverall.getCell(r,8).value={formula:`${ref}G${ov}`};
+    wsOverall.getCell(r,9).value ={formula:`IFERROR(H${r}/G${r},0)`};
+    wsOverall.getCell(r,10).value={formula:`IFERROR(F${r}/H${r},0)`};
+    wsOverall.getCell(r,11).value={formula:`IFERROR(F${r}/G${r}*1000,0)`};
+  }
+  wsOverall.mergeCells(MS_TOT,1,MS_TOT,4);
+  wsOverall.getCell(MS_TOT,1).value='Total';
+  for(const c of [5,6,7,8]) wsOverall.getCell(MS_TOT,c).value={formula:`${colL(c)}${MS_BS}+${colL(c)}${MS_PL}`};
+  wsOverall.getCell(MS_TOT,9).value ={formula:`IFERROR(H${MS_TOT}/G${MS_TOT},0)`};
+  wsOverall.getCell(MS_TOT,10).value={formula:`IFERROR(F${MS_TOT}/H${MS_TOT},0)`};
+  wsOverall.getCell(MS_TOT,11).value={formula:`IFERROR(F${MS_TOT}/G${MS_TOT}*1000,0)`};
+
+  for(let r=MS_BS;r<=MS_TOT;r++){
+    for(let c=1;c<=11;c++){
+      const cell=wsOverall.getCell(r,c);
+      cell.border=BOX;
+      if(c===5||c===6) cell.numFmt=NF_USD0;
+      if(c===7||c===8) cell.numFmt=NF_INT;
+      if(c===9)        cell.numFmt=NF_PCT;
+      if(c===10||c===11) cell.numFmt=NF_USD2;
+      if(c<=4) cell.alignment={horizontal:'center',vertical:'middle'};
+      if(r===MS_TOT){
+        cell.font={bold:true,color:{argb:'FFFFFFFF'}};
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};
+        cell.border={top:MED,left:THIN,bottom:THIN,right:THIN};
+      }
+    }
+    wsOverall.getRow(r).height=18;
+  }
+
+  return wb;
+}
+function ws_check(ws,row,groupRows,allRow){
+  ws.getCell(row,1).value='Check: Σ Groups = Total';
+  const cols=[['B',2],['C',3],['D',4]];
+  for(const cc of cols){
+    const sum=groupRows.map(r=>cc[0]+r).join('+');
+    const dec=cc[0]==='D'?2:0;
+    ws.getCell(row,cc[1]).value={formula:`IF(ROUND(${sum}-${cc[0]}${allRow},${dec})=0,"OK","MISMATCH")`};
+  }
+  for(let c=1;c<=4;c++){
+    const cell=ws.getCell(row,c);
+    cell.font={bold:true,italic:true,size:10};
+    cell.border=BOX;
+    cell.alignment={horizontal:c===1?'left':'center'};
+  }
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+function detectedMonths(){
+  return distinct(S.rawDaily.map(r=>r.date.slice(0,7))).sort();
+}
+function detectedPlCampaigns(){
+  return distinct(S.rawDaily.filter(r=>r.media==='PL').map(r=>r.campaign)).sort();
+}
+function detectedAdGroups(){
+  const plCamp=S.campaign.plCampaign;
+  return distinct(S.rawDaily.concat(S.rawKeyword)
+    .filter(r=>r.media==='PL' && (!plCamp || r.campaign===plCamp))
+    .map(r=>r.adGroup)).sort();
+}
+
+function renderFx(){
+  const months=detectedMonths();
+  if(!months.length){ $('fxBox').innerHTML='<p style="color:var(--muted);font-size:12.5px;margin:0">일별 리포트를 업로드하면 필요한 월이 표시됩니다.</p>'; return; }
+  let h='<div class="grid g4">';
+  for(const m of months){
+    const v=S.fxRates[m]??'';
+    h+=`<div><label>${m} <span class="pill ${v?'p-ok':'p-no'}">${v?'입력됨':'필요'}</span></label>
+        <input type="number" step="0.01" min="0" data-fx="${m}" value="${v}" placeholder="예: 1385"></div>`;
+  }
+  h+='</div>';
+  $('fxBox').innerHTML=h;
+  $('fxBox').querySelectorAll('input[data-fx]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      const m=el.dataset.fx;
+      if(el.value==='') delete S.fxRates[m]; else S.fxRates[m]=Number(el.value);
+      save(); refreshValidation();
+      renderFxPills();
+    });
+  });
+}
+function renderFxPills(){
+  $('fxBox').querySelectorAll('input[data-fx]').forEach(el=>{
+    const pill=el.parentElement.querySelector('.pill');
+    const has=!!num(S.fxRates[el.dataset.fx]);
+    pill.className='pill '+(has?'p-ok':'p-no'); pill.textContent=has?'입력됨':'필요';
+  });
+}
+
+function renderAdGroups(){
+  const gs=detectedAdGroups();
+  if(!gs.length){ $('agBox').innerHTML='<p style="color:var(--muted);font-size:12.5px;margin:0">업로드 후 감지된 광고그룹이 표시됩니다.</p>'; return; }
+  let h='<div class="scroll"><table><thead><tr><th>Raw 광고그룹</th><th style="width:180px">표준 그룹</th><th style="width:90px">상태</th></tr></thead><tbody>';
+  for(const g of gs){
+    const cur=S.adGroupMap[g]||'';
+    const auto=inferGroup(g);
+    h+=`<tr><td><code>${g}</code></td><td>
+        <select data-ag="${g.replace(/"/g,'&quot;')}">
+          <option value="">— 미분류 —</option>
+          ${GROUPS.map(x=>`<option value="${x}" ${cur===x?'selected':''}>${x}</option>`).join('')}
+        </select></td>
+        <td>${cur?`<span class="pill p-ok">${auto&&auto===cur?'자동':'수동'}</span>`:'<span class="pill p-no">지정 필요</span>'}</td></tr>`;
+  }
+  h+='</tbody></table></div>';
+  $('agBox').innerHTML=h;
+  $('agBox').querySelectorAll('select[data-ag]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      const g=el.dataset.ag;
+      if(el.value) S.adGroupMap[g]=el.value; else delete S.adGroupMap[g];
+      save(); renderAdGroups(); refreshValidation();
+    });
+  });
+}
+function autoMapAdGroups(){
+  for(const g of detectedAdGroups()){
+    if(S.adGroupMap[g]) continue;
+    const inf=inferGroup(g);
+    if(inf) S.adGroupMap[g]=inf;
+  }
+}
+
+function renderKeywordMap(){
+  const {conflicts}=keywordLookup();
+  $('kwHint').innerHTML=`현재 <b>${S.keywordMap.length.toLocaleString()}</b>개 매핑 등록됨`+
+    (S.keywordMapIsDefault?' (기본 내장 목록)':' (사용자 업로드)')+
+    (conflicts.length?` · <span style="color:var(--warn)">EN 충돌 ${conflicts.length}건: ${conflicts.slice(0,5).join(', ')}</span>`:'');
+  $('kwSummary').textContent=`매핑 목록 보기 (${S.keywordMap.length.toLocaleString()}행)`;
+  const t=$('kwTable');
+  t.innerHTML='<thead><tr><th style="width:110px">Category</th><th>Keyword (KO)</th><th>Keyword (EN)</th></tr></thead><tbody>'+
+    S.keywordMap.map(r=>`<tr><td>${esc(r.category)}</td><td>${esc(r.ko)}</td><td>${esc(r.en)}</td></tr>`).join('')+
+    '</tbody>';
+}
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderStatus(){
+  const d=S.rawDaily, k=S.rawKeyword;
+  if(!d.length && !k.length){
+    $('statusBox').innerHTML='<p style="color:var(--muted);font-size:12.5px;margin:0">업로드된 데이터가 없습니다.</p>';
+    return;
+  }
+  const dates=d.map(r=>r.date).filter(Boolean).sort();
+  const bytes=new Blob([JSON.stringify(S)]).size;
+  const plCamp=S.campaign.plCampaign;
+  const cnt=(arr,m)=>arr.filter(r=>r.media===m&&(m!=='PL'||!plCamp||r.campaign===plCamp)).length;
+  $('statusBox').innerHTML=`<div class="stat">
+    <div><b>${d.length.toLocaleString()}</b><span>일별 행 (BS ${cnt(d,'BS')} / PL ${cnt(d,'PL')})</span></div>
+    <div><b>${k.length.toLocaleString()}</b><span>키워드 행 (BS ${cnt(k,'BS')} / PL ${cnt(k,'PL')})</span></div>
+    <div><b>${dates[0]||'-'} ~ ${dates[dates.length-1]||'-'}</b><span>데이터 기간</span></div>
+    <div><b>${detectedMonths().join(', ')||'-'}</b><span>포함 월</span></div>
+    <div><b>${(bytes/1024).toFixed(0)} KB</b><span>localStorage 사용량</span></div>
+    <div><b>${S.meta.uploadedAt||'-'}</b><span>마지막 업로드</span></div>
+  </div>`;
+  if(bytes>4.5*1024*1024)
+    $('statusBox').innerHTML+='<div class="msg warn">저장 용량이 5MB에 근접했습니다. 이전 데이터를 삭제해 주세요.</div>';
+}
+
+function renderSettings(){
+  $('cClient').value=S.campaign.client||'';
+  $('cName').value=S.campaign.name||'';
+  $('cAgency').value=S.campaign.agencyFee??'';
+  $('cStart').value=S.campaign.start||'';
+  $('cEnd').value=S.campaign.end||'';
+  $('cThrough').value=S.campaign.through||S.meta.dataThrough||'';
+  $('bBS').value=S.campaign.budgetBS??'';
+  $('bPL').value=S.campaign.budgetPL??'';
+  $('feePC').value=S.bsFixedFee.pc??'';
+  $('feeMO').value=S.bsFixedFee.mo??'';
+  const camps=detectedPlCampaigns();
+  $('plCampaign').innerHTML=camps.length
+    ? camps.map(c=>`<option value="${esc(c)}" ${S.campaign.plCampaign===c?'selected':''}>${esc(c)}</option>`).join('')
+    : '<option value="">(업로드 필요)</option>';
+}
+
+/* ---------- validation ---------- */
+function validate(){
+  const errs=[], warns=[];
+  if(!S.rawDaily.length) errs.push('일별 리포트를 업로드하세요.');
+  if(!S.rawKeyword.length) errs.push('키워드 리포트를 업로드하세요.');
+  if(!S.campaign.start||!S.campaign.end) errs.push('Campaign Period를 입력하세요.');
+  if(!num(S.campaign.budgetBS)) errs.push('Brand Search Budget을 입력하세요.');
+  if(!num(S.campaign.budgetPL)) errs.push('Powerlink Budget을 입력하세요.');
+  if(!num(S.bsFixedFee.pc)&&!num(S.bsFixedFee.mo)) errs.push('Brand Search 정액료(PC/MO)를 입력하세요.');
+  const missFx=detectedMonths().filter(m=>!num(S.fxRates[m]));
+  if(missFx.length) errs.push('환율 미입력: <b>'+missFx.join(', ')+'</b>');
+  const unAg=detectedAdGroups().filter(g=>!S.adGroupMap[g]);
+  if(unAg.length) errs.push('Ad Group 미지정: <b>'+unAg.join(', ')+'</b>');
+  return {errs,warns};
+}
+function refreshValidation(){
+  const {errs}=validate();
+  $('btnGenerate').disabled = errs.length>0;
+  $('genMsg').innerHTML = errs.length
+    ? '<span style="color:var(--err)">· '+errs.join('<br>· ')+'</span>'
+    : '<span style="color:var(--ok)">모든 입력이 완료되었습니다. 생성할 수 있습니다.</span>';
+}
+
+/* ---------- upload handlers ---------- */
+async function handleUpload(file,kind){
+  try{
+    const rows=await readFile(file);
+    const res=ingest(rows,kind,file.name);
+    if(kind==='daily'){
+      S.rawDaily=res.rows;
+      S.meta.dailyFile=file.name;
+      const ds=res.rows.map(r=>r.date).filter(Boolean).sort();
+      S.meta.dataThrough=ds[ds.length-1]||'';
+      if(!S.campaign.through) S.campaign.through=S.meta.dataThrough;
+      if(!S.campaign.start)   S.campaign.start=ds[0]||'';
+      if(!S.campaign.end)     S.campaign.end=ds[ds.length-1]||'';
+    }else{
+      S.rawKeyword=res.rows;
+      S.meta.keywordFile=file.name;
+    }
+    S.meta.uploadedAt=new Date().toLocaleString('ko-KR');
+    const camps=detectedPlCampaigns();
+    if(!S.campaign.plCampaign||!camps.includes(S.campaign.plCampaign))
+      S.campaign.plCampaign=camps.includes('Evergreen_PPC')?'Evergreen_PPC':(camps[0]||'');
+    autoMapAdGroups();
+    save(); renderAll();
+    let m=`<b>${esc(file.name)}</b> — ${res.rows.length.toLocaleString()}행 로드 완료.`;
+    if(res.badDevice.length) m+=` <span style="color:var(--warn)">인식되지 않은 디바이스 값 제외: ${res.badDevice.map(esc).join(', ')}</span>`;
+    showMsg('uploadMsg','ok',m);
+  }catch(e){
+    showMsg('uploadMsg','err','<b>업로드 실패</b><br>'+e.message);
+  }
+}
+function wireDrop(dropId,inputId,labelId,kind){
+  const drop=$(dropId), input=$(inputId);
+  drop.addEventListener('click',()=>input.click());
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{
+    e.preventDefault(); drop.classList.remove('over');
+    if(e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0],kind);
+  });
+  input.addEventListener('change',()=>{ if(input.files[0]) handleUpload(input.files[0],kind); });
+}
+
+/* ---------- generate ---------- */
+async function generate(){
+  const btn=$('btnGenerate'); btn.disabled=true; btn.textContent='생성 중…';
+  try{
+    const M=buildModel();
+    if(M.missingFx.length) throw new Error('환율이 없는 월이 있습니다: '+M.missingFx.join(', '));
+    const wb=await buildWorkbook(M);
+    const buf=await wb.xlsx.writeBuffer();
+    const name=`ALO_Evergreen_Weekly_Report_${(M.through||'').replace(/-/g,'')}.xlsx`;
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+
+    const un=[...M.unmappedKw.entries()].sort((a,b)=>b[1]-a[1]);
+    let msg=`<b>${name}</b> 생성 완료.<br>`+
+      `Brand Search ${M.bsDaily.length}일 / Powerlink ${M.plDaily.length}일 · `+
+      `키워드 BS ${M.bsKeywords.length} · PL ${M.plKeywords.length}`;
+    showMsg('unmappedBox', un.length?'warn':'ok',
+      un.length
+        ? `<b>미매핑 키워드 ${un.length}건</b> — Excel에 <code>[UNMAPPED]</code>로 표기됩니다.<br>`+
+          un.slice(0,30).map(([k,v])=>`${esc(k)} <span style="opacity:.6">(${fmtInt(v)})</span>`).join(' · ')
+        : '미매핑 키워드 없음 — 모든 키워드가 영문으로 변환되었습니다.');
+    $('genMsg').innerHTML='<span style="color:var(--ok)">'+msg+'</span>';
+  }catch(e){
+    $('genMsg').innerHTML='<span style="color:var(--err)">생성 실패: '+esc(e.message)+'</span>';
+    console.error(e);
+  }finally{
+    btn.textContent='Excel 리포트 생성'; refreshValidation();
+  }
+}
+
+/* ---------- render all ---------- */
+function renderAll(){
+  renderSettings(); renderFx(); renderAdGroups(); renderKeywordMap(); renderStatus(); refreshValidation();
+  $('lblDaily').textContent=S.meta.dailyFile||'클릭 또는 드래그 & 드롭';
+  $('lblKw').textContent=S.meta.keywordFile||'클릭 또는 드래그 & 드롭';
+  $('dropDaily').classList.toggle('has',!!S.meta.dailyFile);
+  $('dropKw').classList.toggle('has',!!S.meta.keywordFile);
+}
+
+/* ---------- wire up ---------- */
+function bindSetting(id,setter){
+  $(id).addEventListener('input',()=>{ setter($(id).value); save(); refreshValidation(); });
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  load();
+  wireDrop('dropDaily','fileDaily','lblDaily','daily');
+  wireDrop('dropKw','fileKw','lblKw','keyword');
+
+  bindSetting('cClient',v=>S.campaign.client=v);
+  bindSetting('cName',v=>S.campaign.name=v);
+  bindSetting('cAgency',v=>S.campaign.agencyFee=v===''?null:Number(v));
+  bindSetting('cStart',v=>S.campaign.start=v);
+  bindSetting('cEnd',v=>S.campaign.end=v);
+  bindSetting('cThrough',v=>S.campaign.through=v);
+  bindSetting('bBS',v=>S.campaign.budgetBS=v===''?null:Number(v));
+  bindSetting('bPL',v=>S.campaign.budgetPL=v===''?null:Number(v));
+  bindSetting('feePC',v=>S.bsFixedFee.pc=v===''?null:Number(v));
+  bindSetting('feeMO',v=>S.bsFixedFee.mo=v===''?null:Number(v));
+  $('plCampaign').addEventListener('change',()=>{
+    S.campaign.plCampaign=$('plCampaign').value; autoMapAdGroups(); save(); renderAll();
+  });
+
+  $('btnKwUpload').addEventListener('click',()=>$('fileKwMap').click());
+  $('fileKwMap').addEventListener('change',async()=>{
+    const f=$('fileKwMap').files[0]; if(!f) return;
+    try{
+      const rows=await readFile(f);
+      const parsed=parseKeywordRows(rows);
+      if(!parsed.length) throw new Error('유효한 행이 없습니다.');
+      S.keywordMap=parsed; S.keywordMapIsDefault=false; save(); renderKeywordMap();
+      showMsg('unmappedBox','ok',`매핑 ${parsed.length}행으로 교체되었습니다.`);
+    }catch(e){ showMsg('unmappedBox','err','매핑 CSV 읽기 실패: '+esc(e.message)); }
+  });
+  $('btnKwDownload').addEventListener('click',()=>{
+    const csv='category,keyword_ko,keyword_en\n'+
+      S.keywordMap.map(r=>[r.category,r.ko,r.en].map(x=>/[",]/.test(x)?`"${String(x).replace(/"/g,'""')}"`:x).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+    a.download='keyword_mapping.csv'; a.click();
+  });
+  $('btnKwReset').addEventListener('click',()=>{
+    if(!confirm('키워드 매핑을 기본 내장 목록으로 되돌립니다. 계속할까요?')) return;
+    S.keywordMap=parseKeywordCsv(DEFAULT_KEYWORD_CSV); S.keywordMapIsDefault=true; save(); renderKeywordMap();
+  });
+
+  $('btnClearData').addEventListener('click',()=>{
+    if(!confirm('업로드한 Raw Data를 삭제합니다. 설정값(기간·예산·환율·매핑)은 유지됩니다. 계속할까요?')) return;
+    S.rawDaily=[]; S.rawKeyword=[];
+    S.meta={dailyFile:'',keywordFile:'',uploadedAt:'',dataThrough:''};
+    save(); renderAll(); showMsg('uploadMsg','ok','업로드 데이터를 삭제했습니다.');
+  });
+  $('btnClearAll').addEventListener('click',()=>{
+    if(!confirm('모든 데이터와 설정을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
+    localStorage.removeItem(STORE_KEY); S=blankState(); renderAll();
+    showMsg('uploadMsg','ok','전체 초기화되었습니다.');
+  });
+
+  $('btnGenerate').addEventListener('click',generate);
+  renderAll();
+});
+</script>
+</body>
+</html>

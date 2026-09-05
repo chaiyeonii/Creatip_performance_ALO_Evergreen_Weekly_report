@@ -1,0 +1,19 @@
+# ── 클라이언트 Raw Data (네이버 검색광고 리포트) — 커밋 금지 ──
+# 실집행 노출/클릭/광고비가 들어 있으므로 리포지토리에 올리지 않는다.
+일별*.csv
+키워드*.csv
+*,[0-9][0-9][0-9][0-9][0-9][0-9][0-9].csv
+
+# 단, 키워드 번역 매핑은 툴의 일부이므로 포함한다.
+!keyword_mapping.csv
+
+# ── 생성 결과물 ──
+ALO_Evergreen_Weekly_Report_*.xlsx
+~$*.xlsx
+
+# ── OS / 편집기 ──
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
