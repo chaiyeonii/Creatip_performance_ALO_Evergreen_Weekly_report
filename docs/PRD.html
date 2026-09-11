@@ -1,0 +1,965 @@
+<title>Evergreen Weekly Report PRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+
+<style>
+:root{
+  --ground:#f3f5f9;
+  --surface:#ffffff;
+  --surface-2:#eef1f7;
+  --ink:#131922;
+  --ink-2:#3c4657;
+  --muted:#616d81;
+  --line:#dbe1ec;
+  --line-strong:#c2cbdb;
+  --ok:#256b46;
+  --ok-bg:#e4f1ea;
+  --open:#8a5300;
+  --open-bg:#fbeed8;
+  --accent:#1f3864;
+  --accent-soft:#e6ecf6;
+  --focus:#4472c4;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d121a;
+    --surface:#141b26;
+    --surface-2:#1b2431;
+    --ink:#e5eaf3;
+    --ink-2:#c0cade;
+    --muted:#8e9bb1;
+    --line:#25303f;
+    --line-strong:#33404f;
+    --ok:#7fcfa4;
+    --ok-bg:#17301f;
+    --open:#e2b264;
+    --open-bg:#332510;
+    --accent:#8fb0e6;
+    --accent-soft:#1a2434;
+    --focus:#7ea3de;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d121a;
+  --surface:#141b26;
+  --surface-2:#1b2431;
+  --ink:#e5eaf3;
+  --ink-2:#c0cade;
+  --muted:#8e9bb1;
+  --line:#25303f;
+  --line-strong:#33404f;
+  --ok:#7fcfa4;
+  --ok-bg:#17301f;
+  --open:#e2b264;
+  --open-bg:#332510;
+  --accent:#8fb0e6;
+  --accent-soft:#1a2434;
+  --focus:#7ea3de;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif;
+  font-size:15px;line-height:1.72;-webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+
+/* ---------- masthead ---------- */
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead .inner{max-width:1180px;margin:0 auto;padding:56px 32px 40px}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.eyebrow .bar{width:34px;height:2px;background:var(--accent);display:inline-block}
+h1{
+  font-family:"Gowun Batang",Batang,serif;font-weight:700;
+  font-size:clamp(30px,4.4vw,46px);line-height:1.2;letter-spacing:-.015em;
+  margin:0 0 14px;text-wrap:balance;
+}
+.standfirst{margin:0;max-width:62ch;font-size:16.5px;color:var(--ink-2)}
+.status-line{
+  display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;
+  margin-top:26px;padding-top:22px;border-top:1px solid var(--line);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);
+}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:3px;font-weight:500}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.open{background:var(--open-bg);color:var(--open)}
+
+/* ---------- shell ---------- */
+.shell{
+  max-width:1180px;margin:0 auto;padding:0 32px 110px;
+  display:grid;grid-template-columns:210px minmax(0,1fr);gap:56px;align-items:start;
+}
+nav.toc{position:sticky;top:28px;padding-top:44px}
+nav.toc h2{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:500;
+}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+nav.toc a{
+  display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:baseline;
+  padding:6px 8px;border-radius:4px;color:var(--ink-2);text-decoration:none;font-size:13.5px;line-height:1.4;
+}
+nav.toc a:hover{background:var(--accent-soft);color:var(--ink)}
+nav.toc .n{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+
+main{padding-top:44px;display:flex;flex-direction:column;gap:60px;min-width:0}
+
+/* ---------- facts ---------- */
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));border-top:1px solid var(--line-strong)}
+.facts div{
+  border-bottom:1px solid var(--line);padding:14px 0;
+  display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;align-items:baseline;
+}
+@media(min-width:760px){
+  .facts div:nth-child(odd){padding-right:32px}
+  .facts div:nth-child(even){padding-left:32px;border-left:1px solid var(--line)}
+}
+.facts .k{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.facts .v{font-size:14px;color:var(--ink-2)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:24px}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin:0 0 8px}
+.sec-num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--accent);padding-top:6px}
+h2.sec{font-family:"Gowun Batang",Batang,serif;font-weight:700;font-size:27px;line-height:1.3;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:16px;font-weight:600;margin:34px 0 10px;letter-spacing:-.005em;color:var(--ink)}
+h3 .aside{font-weight:400;color:var(--muted);font-size:13px}
+h4{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px;
+}
+.sec-rule{height:1px;background:var(--line-strong);margin:14px 0 22px}
+p{margin:0 0 14px;max-width:68ch}
+ul{margin:0 0 14px;padding-left:0;list-style:none;max-width:68ch}
+ul li{position:relative;padding-left:17px;margin-bottom:7px}
+ul li::before{content:"";position:absolute;left:2px;top:.72em;width:5px;height:1px;background:var(--line-strong)}
+ol.steps{counter-reset:s;list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:5px;max-width:68ch}
+ol.steps li{position:relative;padding-left:30px;counter-increment:s}
+ol.steps li::before{
+  content:counter(s);position:absolute;left:0;top:0;width:20px;text-align:right;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted);line-height:1.72;
+}
+strong{font-weight:600;color:var(--ink)}
+code{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.86em;
+  background:var(--surface-2);color:var(--ink-2);padding:1.5px 5px;border-radius:3px;word-break:break-word;
+}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:0 0 16px;border-top:1px solid var(--line-strong)}
+table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.6;font-variant-numeric:tabular-nums}
+th,td{text-align:left;vertical-align:top;padding:9px 14px 9px 0;border-bottom:1px solid var(--line)}
+th{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;padding-top:11px;padding-bottom:11px;
+}
+td:last-child,th:last-child{padding-right:0}
+td.id{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:600;color:var(--accent);white-space:nowrap}
+td.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
+td.row{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);white-space:nowrap;width:74px}
+td.num,th.num{text-align:right}
+td.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
+td.c,th.c{text-align:center}
+tbody tr:last-child td{border-bottom:1px solid var(--line-strong)}
+tr.gap td{color:var(--muted);font-style:italic}
+tr.em td{font-weight:600}
+
+/* ---------- callouts / code ---------- */
+.note{
+  border-left:2px solid var(--accent);background:var(--accent-soft);
+  padding:13px 18px;margin:0 0 16px;border-radius:0 4px 4px 0;font-size:14px;color:var(--ink-2);max-width:68ch;
+}
+.note p:last-child{margin-bottom:0}
+pre{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.75;
+  background:var(--surface);border:1px solid var(--line);padding:16px 18px;border-radius:5px;
+  overflow-x:auto;margin:0 0 16px;color:var(--ink-2);
+}
+
+/* ---------- sheet tabs ---------- */
+.tabs{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0 26px;border-bottom:2px solid var(--accent)}
+.tabs a{
+  display:flex;align-items:baseline;gap:8px;padding:9px 15px;text-decoration:none;
+  background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);border-bottom:none;
+  border-radius:4px 4px 0 0;font-size:13px;font-weight:500;
+}
+.tabs a:hover{background:var(--surface);color:var(--ink)}
+.tabs a .sn{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;color:var(--muted)}
+
+/* ---------- brand colour explorer ---------- */
+.brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px;margin:0 0 18px}
+.brand{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:5px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  font:inherit;font-size:13px;text-align:left;cursor:pointer;
+}
+.brand:hover{border-color:var(--line-strong)}
+.brand[aria-pressed="true"]{border-color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--ink-2)}
+.brand .sw{width:22px;height:22px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.12)}
+.brand .nm{display:flex;flex-direction:column;line-height:1.25}
+.brand .hx{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;color:var(--muted)}
+.tones{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:0;border:1px solid var(--line);border-radius:5px;overflow:hidden;margin:0 0 8px}
+.tone{padding:12px 12px 10px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between}
+.tone .t{font-size:12.5px;font-weight:600}
+.tone .h{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;opacity:.85}
+.tone .r{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;opacity:.85}
+.caption{font-size:12.5px;color:var(--muted);margin:0 0 18px}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;padding:2px 8px;border-radius:3px;font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:10.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap;vertical-align:2px;
+}
+.pill.done{background:var(--ok-bg);color:var(--ok)}
+.pill.open{background:var(--open-bg);color:var(--open)}
+
+footer{
+  border-top:1px solid var(--line);max-width:1180px;margin:0 auto;padding:30px 32px 60px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+
+@media(max-width:960px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:0;padding:0 22px 80px}
+  nav.toc{position:static;padding-top:32px}
+  nav.toc ol{flex-direction:row;flex-wrap:wrap;gap:4px}
+  nav.toc a{border:1px solid var(--line);border-radius:4px;padding:5px 10px}
+  main{padding-top:34px;gap:48px}
+  .masthead .inner{padding:40px 22px 32px}
+  footer{padding:26px 22px 50px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="masthead">
+  <div class="inner">
+    <p class="eyebrow"><span class="bar"></span>Product Requirements · Naver Search Ads</p>
+    <h1>Weekly Report Generator</h1>
+    <p class="standfirst">네이버 검색광고 Raw Data를 올리면 클라이언트 제출용 5-Sheet Excel 리포트를 만드는 브라우저 툴. 특정 브랜드 전용이 아니라 Client · Campaign · Brand Color를 입력받아 어떤 광고주에게도 재사용한다.</p>
+
+    <div class="facts" style="margin-top:30px">
+      <div><span class="k">형태</span><span class="v">단일 HTML 파일 <code>index.html</code> — 브라우저 실행, 서버·설치 불필요</span></div>
+      <div><span class="k">라이브러리</span><span class="v">SheetJS 0.18.5 (파싱) · ExcelJS 4.4.0 (서식·수식 출력)</span></div>
+      <div><span class="k">저장</span><span class="v">브라우저 <code>localStorage</code> — 외부 전송 없음</span></div>
+      <div><span class="k">산출물</span><span class="v"><code>[Client]_[Campaign]_Weekly_Report_[CampaignEnd].xlsx</code></span></div>
+    </div>
+
+    <div class="status-line">
+      <span class="chip ok"><span class="dot"></span>구현 완료 · 검증 4개 스위트 통과</span>
+      <span class="chip open"><span class="dot"></span>배포 페이지 미반영 (git push 대기)</span>
+      <span>기준일 2026-09-11 · 커밋 d08d266</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="목차">
+    <h2>목차</h2>
+    <ol>
+      <li><a href="#s1"><span class="n">1</span><span>Tool 입력 흐름</span></a></li>
+      <li><a href="#s2"><span class="n">2</span><span>Raw Data</span></a></li>
+      <li><a href="#s3"><span class="n">3</span><span>계산 로직</span></a></li>
+      <li><a href="#s4"><span class="n">4</span><span>시트 공통 규칙</span></a></li>
+      <li><a href="#s5"><span class="n">5</span><span>시트별 구조</span></a></li>
+      <li><a href="#s6"><span class="n">6</span><span>디자인 시스템</span></a></li>
+      <li><a href="#s7"><span class="n">7</span><span>출력 규칙 요약</span></a></li>
+      <li><a href="#s8"><span class="n">8</span><span>localStorage</span></a></li>
+      <li><a href="#s9"><span class="n">9</span><span>설계 결정 기록</span></a></li>
+      <li><a href="#s10"><span class="n">10</span><span>미해결 사항</span></a></li>
+      <li><a href="#s11"><span class="n">11</span><span>부록</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+  <!-- ============ 1 ============ -->
+  <section id="s1">
+    <div class="sec-head"><span class="sec-num">01</span><h2 class="sec">Tool 입력 흐름</h2></div>
+    <div class="sec-rule"></div>
+    <p>화면은 아래 순서를 그대로 따른다. 모든 입력은 <code>localStorage</code>에 저장되어 새로고침과 다음 주차에도 유지된다.</p>
+
+    <h3>1단계 — Raw Data 업로드</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:30%">슬롯</th><th>파일 예시</th></tr></thead>
+      <tbody>
+        <tr><td>① 일별 리포트</td><td class="mono">일별,2226795.csv</td></tr>
+        <tr><td>② 키워드 리포트</td><td class="mono">키워드,2226795.csv</td></tr>
+      </tbody>
+    </table></div>
+    <p>두 파일 모두 브랜드검색과 파워링크가 섞여 있다. <code>캠페인유형</code> 컬럼으로 <strong>Brand Search Daily · Brand Search Keyword · Powerlink Daily · Powerlink Keyword</strong> 4종 데이터가 자동 분리된다. CSV·XLSX 모두 지원.</p>
+
+    <h3>2단계 — 캠페인 정보</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:24%">항목</th><th style="width:18%">형식</th><th class="c" style="width:52px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>Client</td><td class="mono">text</td><td class="c">●</td><td>모든 시트 제목과 Sheet 1 <code>Client</code> 값 (예: ALO, FIGS, OWALA)</td></tr>
+        <tr><td>Brand Color</td><td class="mono">dropdown</td><td class="c"></td><td>12색 중 선택. 워크북 전체의 Main Key Color (§6)</td></tr>
+        <tr><td>Campaign Name</td><td class="mono">text</td><td class="c">●</td><td>모든 시트 제목과 Sheet 1 <code>Campaign</code> 값 (예: Evergreen, JISOO, Always-on)</td></tr>
+        <tr><td>Advertising Budget</td><td class="mono">[통화▼] [금액]</td><td class="c">●</td><td><strong>캠페인 전체 기간의 총 예산 1개.</strong> Sheet 1 정보표 값</td></tr>
+        <tr><td>Agency Fee (%)</td><td class="mono">number</td><td class="c">●</td><td>퍼센트 입력. Excel에는 <code>Total Spent × Rate</code> 수식으로 계산된 <strong>금액</strong>이 들어간다</td></tr>
+      </tbody>
+    </table></div>
+    <p>Client와 Campaign Name을 입력하면 생성될 5개 시트 제목이 화면에 실시간 미리보기로 표시된다.</p>
+
+    <h3>3단계 — 캠페인 설정</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:14%">구분</th><th style="width:20%">항목</th><th style="width:20%">형식</th><th class="c" style="width:52px">필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>기간</td><td>Campaign Start / End</td><td class="mono">date picker</td><td class="c">●</td><td><strong>리포트의 유일한 기간 기준</strong></td></tr>
+        <tr><td>Brand Search</td><td>Budget</td><td class="mono">[통화▼] [금액]</td><td class="c">●</td><td>정액료 합과 비교해 불일치 시 경고</td></tr>
+        <tr><td></td><td>정액료 · PC</td><td class="mono">Raw Data 통화 고정</td><td class="c">●¹</td><td>Overview PC Budget, 일별·키워드 Spent 배분의 원천</td></tr>
+        <tr><td></td><td>정액료 · MO</td><td class="mono">Raw Data 통화 고정</td><td class="c">●¹</td><td>〃 Mobile</td></tr>
+        <tr><td>Powerlink</td><td>Budget</td><td class="mono">[통화▼] [금액]</td><td class="c">●</td><td>Sheet 1 Media Summary · Sheet 4 Overview Budget</td></tr>
+        <tr><td></td><td>Powerlink Campaign</td><td class="mono">dropdown</td><td class="c"></td><td>업로드된 Raw Data의 실제 캠페인 값으로 <strong>자동 생성</strong>. 선택한 캠페인만 포함</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:12.5px;color:var(--muted)">¹ PC·MO 중 최소 하나.</p>
+
+    <h3>4단계 — 환율</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:30%">항목</th><th style="width:16%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>From — Country / Currency</td><td class="mono">dropdown</td><td>Raw Data 광고비의 통화</td></tr>
+        <tr><td>To — Country / Currency</td><td class="mono">dropdown</td><td><strong>리포트 통화.</strong> Excel 통화 서식이 이 값을 따른다</td></tr>
+        <tr><td>Exchange Rate</td><td class="mono">number</td><td><strong>캠페인 전체에 단일 환율 1개.</strong> <code>1 &lt;To&gt; = rate &lt;From&gt;</code> 방향. From = To이면 입력 불필요</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:13px;color:var(--ink-2)">지원 17개국 — Korea/KRW · Japan/JPY · United States/USD · China/CNY · Taiwan/TWD · Hong Kong/HKD · Singapore/SGD · Thailand/THB · Vietnam/VND · Indonesia/IDR · Malaysia/MYR · Philippines/PHP · India/INR · Australia/AUD · Canada/CAD · United Kingdom/GBP · Eurozone/EUR</p>
+
+    <h3>5~7단계 — 매핑과 현황</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:24%">단계</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td>5. Ad Group 매핑</td><td>Raw 광고그룹 → <code>Branded / Shoes / Competitors / Generic</code>. 자동 추론 + 드롭다운 수정</td></tr>
+        <tr><td>6. Keyword 매핑</td><td>KO→EN 매핑 315행 내장. 목록 보기 · CSV 교체 · 내려받기 · 기본값 복원</td></tr>
+        <tr><td>7. 데이터 현황</td><td>행 수, Raw Data 기간, Campaign Period, 적용 환율, 저장 용량, 업로드 시각 · 데이터 삭제 / 전체 초기화</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4>입력 규칙</h4>
+    <ul>
+      <li><strong>환율·예산 등 금액은 절대 자동 조회·추정하지 않는다.</strong> 사용자가 직접 입력한다.</li>
+      <li>Budget 통화 드롭다운은 <strong>From / To 두 통화만</strong> 제공한다 — 단일 환율로 변환 가능한 조합만 허용.</li>
+      <li>필수 항목이 비거나 Ad Group이 미분류이면 <strong>생성 버튼이 비활성화</strong>되고 비어 있는 항목이 표시된다.</li>
+      <li>금액 불일치는 생성을 막지 않고 <strong>경고로만 표시</strong>한다. 값을 임의로 고치지 않는다.
+        — Brand Search Budget ≠ 정액료 PC+MO / Advertising Budget ≠ BS Budget + PL Budget</li>
+    </ul>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section id="s2">
+    <div class="sec-head"><span class="sec-num">02</span><h2 class="sec">Raw Data</h2></div>
+    <div class="sec-rule"></div>
+
+    <h3>2.1 파일 포맷</h3>
+    <ul>
+      <li>인코딩 UTF-8 with BOM (EUC-KR도 자동 판별)</li>
+      <li><strong>1행 = 제목 행</strong> (예: <code>"일별(2026.07.07.~2026.08.06.),2226795"</code>) → 스킵</li>
+      <li><strong>2행 = 헤더</strong>, 3행부터 데이터. 헤더가 1행에 있는 파일도 자동 인식</li>
+    </ul>
+
+    <h3>2.2 내부 표준 컬럼</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:14%">표준</th><th style="width:20%">일별</th><th style="width:20%">키워드</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">media</td><td class="mono">캠페인유형</td><td class="mono">캠페인유형</td><td><code>브랜드검색/신제품검색</code> → BS, <code>파워링크</code> → PL</td></tr>
+        <tr><td class="mono">campaign</td><td class="mono">캠페인</td><td class="mono">캠페인</td><td>Powerlink 캠페인 필터</td></tr>
+        <tr><td class="mono">adGroup</td><td class="mono">광고그룹</td><td class="mono">광고그룹</td><td>Powerlink 그룹 분류</td></tr>
+        <tr><td class="mono">device</td><td class="mono">PC/모바일 매체</td><td class="mono">PC/모바일 매체</td><td><code>PC</code> → PC, <code>모바일</code>/<code>Mobile</code>/<code>MO</code> → MO</td></tr>
+        <tr><td class="mono">date</td><td class="mono">일별</td><td class="mono">—</td><td></td></tr>
+        <tr><td class="mono">keyword</td><td class="mono">—</td><td class="mono">키워드</td><td></td></tr>
+        <tr><td class="mono">imp / click</td><td class="mono">노출수 / 클릭수</td><td class="mono">노출수 / 클릭수</td><td></td></tr>
+        <tr><td class="mono">cost</td><td class="mono">총비용</td><td class="mono">총비용</td><td>VAT 제외 금액 그대로</td></tr>
+        <tr><td class="mono" style="color:var(--muted)">미사용</td><td class="mono">클릭률(%), 평균 CPC</td><td class="mono">클릭률(%), 평균 CPC</td><td><strong>읽지 않고 전부 재계산</strong></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.3 정규화</h3>
+    <ul>
+      <li>헤더는 공백·괄호·대소문자 차이를 허용하는 <strong>별칭 사전</strong>으로 매핑한다.</li>
+      <li>필수 컬럼을 찾지 못하면 누락 컬럼명과 인식된 헤더를 보여주고 중단한다.</li>
+      <li>날짜 <code>YYYY.MM.DD.</code> · <code>YYYY-MM-DD</code> · <code>YYYY/MM/DD</code> · <code>YYYYMMDD</code> → <code>YYYY-MM-DD</code></li>
+      <li>인식되지 않는 디바이스 값은 집계에서 제외하고 경고한다. 숫자는 콤마·공백 제거, 빈값은 0.</li>
+    </ul>
+
+    <h3>2.4 Ad Group 정규화 <span class="aside">(Powerlink)</span></h3>
+    <p>디바이스 접두사(<code>PC_</code>, <code>MO_</code>)를 제거한 뒤 포함 문자열로 추론한다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:50%">포함 문자열 (대소문자 무시)</th><th>표준값</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">compet, comp</td><td>Competitors</td></tr>
+        <tr><td class="mono">shoe</td><td>Shoes</td></tr>
+        <tr><td class="mono">brand</td><td>Branded</td></tr>
+        <tr><td class="mono">general, generic</td><td>Generic</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>추론 실패 그룹은 <code>미분류</code>로 표시되고 <strong>지정할 때까지 생성이 차단</strong>된다.</li>
+      <li>분류 기준은 Raw Data의 광고그룹이다. 키워드 매핑의 Category는 참조하지 않는다.</li>
+      <li>네이버 Raw의 <code>General</code>은 리포트에서 <code>Generic</code>으로 표기된다.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section id="s3">
+    <div class="sec-head"><span class="sec-num">03</span><h2 class="sec">계산 로직</h2></div>
+    <div class="sec-rule"></div>
+
+    <h3>3.1 파이프라인</h3>
+    <ol class="steps">
+      <li>파싱 → 컬럼 매핑 → 날짜·디바이스·숫자 정규화</li>
+      <li><code>캠페인유형</code>으로 Brand Search / Powerlink 분리, Powerlink는 <strong>선택한 캠페인만</strong> 필터</li>
+      <li>Campaign Start ~ End 범위로 필터</li>
+      <li>Powerlink 광고그룹 → 4개 표준값</li>
+      <li>Brand Search 정액료를 일별·키워드별로 배분</li>
+      <li>집계 — (날짜 × 디바이스), (날짜 × 그룹 × 디바이스), (그룹 × 디바이스 × 키워드)</li>
+      <li>From → To 통화 변환 (캠페인 단일 환율)</li>
+      <li>Sheet 2~5 생성 → Sheet 1은 하위 시트 셀을 <strong>수식으로 참조</strong></li>
+    </ol>
+
+    <h3>3.2 환율</h3>
+<pre>값(To) = 값(From) / rate        ← rate는 "1 To = rate From"
+
+예) From KRW · To USD · 1 USD = 1,400 KRW  →  USD = KRW / 1,400</pre>
+    <ul>
+      <li><strong>캠페인 전 기간에 동일한 환율 1개</strong>를 적용한다. 월별 환율은 사용하지 않는다.</li>
+      <li>From = To이면 변환하지 않는다. Spent · Budget · 정액료 모두 같은 환율로 변환한다.</li>
+    </ul>
+
+    <h3>3.3 Brand Search Spent 배분</h3>
+    <div class="note"><p>브랜드검색은 <strong>정액제 상품이라 Raw Data의 <code>총비용</code>이 일별·키워드 모두 전 행 0원</strong>이다. 사용자가 입력한 정액료로 Spent를 만든다.</p></div>
+    <div class="tw"><table>
+      <thead><tr><th style="width:16%">대상</th><th>규칙</th></tr></thead>
+      <tbody>
+        <tr><td>PC / MO</td><td>안분하지 않는다. 입력한 PC·MO 금액을 각 디바이스에 그대로 귀속</td></tr>
+        <tr><td>일별</td><td>디바이스별 정액료를 <strong>그 디바이스에 데이터가 있는 일수로 균등 배분</strong>. 반올림 잔액은 마지막 날에 보정해 합계가 정액료와 정확히 일치</td></tr>
+        <tr><td>키워드</td><td>디바이스별 정액료를 <strong>그 디바이스 키워드들의 노출 비중으로 배분</strong></td></tr>
+      </tbody>
+    </table></div>
+    <p>결과적으로 Sheet 2 Overview Subtotal Spent = Sheet 3 TOTAL Spent = 정액료 PC + MO (환율 변환 후). Powerlink는 Raw Data의 총비용을 그대로 쓴다.</p>
+
+    <h3>3.4 파생 지표</h3>
+<pre>CTR = Click / Impression
+CPC = Spent / Click
+CPM = Spent / Impression × 1,000</pre>
+    <ul>
+      <li><strong>모든 합계 행·Subtotal·TOTAL은 합계값으로 다시 계산한다.</strong> 일별·키워드별 비율의 평균은 쓰지 않는다.</li>
+      <li>모든 나눗셈은 <code>IFERROR(…, 0)</code> — 분모 0이면 0.</li>
+    </ul>
+
+    <h3>3.5 기간과 결측 데이터</h3>
+    <p>기간 기준은 <strong>Campaign Start ~ End 뿐</strong>이다. Daily Breakdown은 <strong>캠페인 기간의 모든 날짜</strong>를 행으로 만든다. Raw Data가 없는 날과 성과가 0인 날은 반드시 구분한다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:48%">상태</th><th>표기</th></tr></thead>
+      <tbody>
+        <tr><td>그 날짜·디바이스의 Raw Data 행이 <strong>없음</strong></td><td><strong>빈 셀</strong> — 값·수식 없음, 테두리와 서식만 유지</td></tr>
+        <tr><td>Raw Data 행은 있으나 성과가 <strong>0</strong></td><td><code>0</code>, <code>0.00%</code> 등 실제 값</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>한 날짜에 PC만 없으면 → PC 4칸은 빈 셀, Total은 <strong>MO만</strong> 합산.</li>
+      <li>양쪽 다 없으면 → Total 포함 그 행의 지표 셀이 전부 빈 셀.</li>
+      <li>TOTAL 행의 <code>SUM()</code>은 빈 셀을 무시하므로 <strong>Raw Data가 있는 구간만</strong> 집계된다.</li>
+    </ul>
+
+    <h3>3.6 키워드 집계</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:18%"></th><th>Brand Search</th><th>Powerlink</th></tr></thead>
+      <tbody>
+        <tr><td>집계 키</td><td>(디바이스, 키워드)</td><td>(광고그룹, 디바이스, 키워드)</td></tr>
+        <tr><td>포함 조건</td><td colspan="2">Imp &gt; 0 또는 Click &gt; 0 — 상위 N개 제한 없이 전량</td></tr>
+        <tr><td>정렬</td><td>디바이스별 Impression DESC</td><td>그룹 순서 고정 → 그룹 내 Impression DESC</td></tr>
+        <tr><td>PC / MO</td><td colspan="2">완전히 독립 집계·정렬. 행 수를 억지로 맞추지 않는다</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Keyword (EN) 매핑</h4>
+    <ul>
+      <li>조회 키는 공백 제거 + 소문자 (<code>알로 지수</code> → <code>알로지수</code>).</li>
+      <li>같은 KO가 여러 번 나오면 먼저 나온 행을 쓰고, EN이 서로 다르면 충돌 경고.</li>
+      <li>매핑에 없으면 <code>[UNMAPPED]</code>로 표기하고 생성 후 화면에 미매핑 목록을 노출. Category는 Excel에 출력하지 않는다.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section id="s4">
+    <div class="sec-head"><span class="sec-num">04</span><h2 class="sec">시트 공통 규칙</h2></div>
+    <div class="sec-rule"></div>
+
+    <h3>4.1 시트 구성과 제목</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:36px">#</th><th style="width:30%">시트명</th><th>B2 제목</th></tr></thead>
+      <tbody>
+        <tr><td class="id">1</td><td>Overall</td><td class="mono">[Client]_[Campaign] AD Summary</td></tr>
+        <tr><td class="id">2</td><td>Brand Search</td><td class="mono">[Client]_[Campaign] Brand Search Report</td></tr>
+        <tr><td class="id">3</td><td>Brand Search Keywords</td><td class="mono">[Client]_[Campaign] Brand Search Keyword Report</td></tr>
+        <tr><td class="id">4</td><td>Powerlink</td><td class="mono">[Client]_[Campaign] Powerlink Report</td></tr>
+        <tr><td class="id">5</td><td>Powerlink Keywords</td><td class="mono">[Client]_[Campaign] Powerlink Keyword Report</td></tr>
+      </tbody>
+    </table></div>
+    <p>예: Client <code>ALO</code> · Campaign <code>Evergreen</code> → <code>ALO_Evergreen AD Summary</code>. <strong>브랜드명·캠페인명은 코드에 하드코딩하지 않는다.</strong> 제목·정보표·파일명 모두 입력값에서 생성한다.</p>
+
+    <h3>4.2 여백</h3>
+    <ul>
+      <li><strong>A열과 1행은 전 시트에서 완전 공백</strong> (A열 너비 2.4, 1행 높이 9). 모든 콘텐츠는 <strong>B2</strong>부터.</li>
+      <li><strong>Report Title 다음에는 빈 행 1개.</strong></li>
+      <li><strong>Section Header 바로 아래에는 빈 행 없이 표가 붙는다.</strong> 빈 행은 서로 다른 Section Block 사이에만 쓴다.</li>
+    </ul>
+<pre>Overview           ← Section Header
+Media | Ad | …     ← 표가 바로 이어짐
+…
+(빈 행)             ← Section 사이 구분
+Daily Breakdown
+Date | …</pre>
+    <ul>
+      <li>예외: <code>Daily Breakdown by Keyword Group</code> 밴드와 Keyword 시트 부제 밴드는 아래에 또 다른 밴드가 오므로 빈 행을 둔다.</li>
+      <li>표의 컬럼 헤더 아래에는 빈 행을 넣지 않는다.</li>
+    </ul>
+
+    <h3>4.3 용어</h3>
+    <p>광고비 라벨은 전 시트에서 <strong><code>Spent</code></strong>로 통일한다. <code>Cost</code>는 쓰지 않는다. 사용 지표명은 <code>Budget · Spent · Impression / Imp · Click · CTR · CPC · CPM</code>.</p>
+
+    <h3>4.4 기타</h3>
+    <ul>
+      <li><strong>틀 고정 없음</strong> — 전 시트에서 행·열 모두 고정하지 않는다.</li>
+      <li><strong>열 너비 자동</strong> — 실제로 기록된 콘텐츠 길이로 산정 (한글 1자 = 1.75). 최소 8 · 최대 26 (Keyword 시트 30). A열과 Spacer 열은 예외.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section id="s5">
+    <div class="sec-head"><span class="sec-num">05</span><h2 class="sec">시트별 구조</h2></div>
+    <div class="sec-rule"></div>
+    <div class="tabs">
+      <a href="#sh1"><span class="sn">01</span>Overall</a>
+      <a href="#sh2"><span class="sn">02</span>Brand Search</a>
+      <a href="#sh3"><span class="sn">03</span>Brand Search Keywords</a>
+      <a href="#sh4"><span class="sn">04</span>Powerlink</a>
+      <a href="#sh5"><span class="sn">05</span>Powerlink Keywords</a>
+    </div>
+
+    <!-- Sheet 1 -->
+    <h3 id="sh1">Sheet 1 — Overall <span class="aside">(AD Summary)</span></h3>
+    <div class="tw"><table>
+      <thead><tr><th>행</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="row">2</td><td>Report Title</td></tr>
+        <tr class="gap"><td class="row">3</td><td>빈 행</td></tr>
+        <tr><td class="row">4–10</td><td>기본 정보표 7행</td></tr>
+        <tr class="gap"><td class="row">11</td><td>빈 행</td></tr>
+        <tr><td class="row">12</td><td><code>Media Summary</code> Section Header</td></tr>
+        <tr><td class="row">13</td><td>표 헤더</td></tr>
+        <tr><td class="row">14–16</td><td>Brand Search · Powerlink · Total</td></tr>
+      </tbody>
+    </table></div>
+    <h4>기본 정보표</h4>
+    <p>섹션 헤더 없이 제목 아래에 바로 온다. 라벨은 B열, 값은 C:E 병합. <strong>라벨·값 모두 가로·세로 중앙 정렬.</strong></p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:28%">항목</th><th>값</th></tr></thead>
+      <tbody>
+        <tr><td>Client</td><td>입력값</td></tr>
+        <tr><td>Campaign</td><td>입력값 — Client가 아니라 Campaign Name</td></tr>
+        <tr><td>Period</td><td class="mono">YYYY.MM.DD - YYYY.MM.DD</td></tr>
+        <tr><td>Total Spent</td><td>Media Summary Total 행 Spent <strong>수식 참조</strong></td></tr>
+        <tr><td>Advertising Budget</td><td>캠페인 총 예산 (리포트 통화로 변환)</td></tr>
+        <tr><td>Agency Fee</td><td><code>= Total Spent 셀 × Rate</code> 수식 → 금액 표시</td></tr>
+        <tr><td>Exchange Rate</td><td class="mono">1 USD = 1,400 KRW · From = To이면 USD (no conversion)</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Media Summary</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Campaign</th><th>Period</th><th>Media</th><th>Ad</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Impression</th><th class="num">Click</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">CPM</th></tr></thead>
+    </table></div>
+    <ul>
+      <li>Campaign · Period · Media(<code>Naver SA</code>)는 두 매체 행에 걸쳐 <strong>세로 병합</strong></li>
+      <li>Budget·Spent·Impression·Click은 Sheet 2·4 <strong>Overview Subtotal 행을 수식 참조</strong></li>
+      <li>Total 행: Campaign~Ad 4열 가로 병합, Main Color 배경. CTR·CPC·CPM은 각 행 합계로 재계산</li>
+    </ul>
+
+    <!-- Sheet 2 -->
+    <h3 id="sh2">Sheet 2 — Brand Search Report</h3>
+    <div class="tw"><table>
+      <thead><tr><th>행</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="row">2</td><td>Report Title</td></tr>
+        <tr class="gap"><td class="row">3</td><td>빈 행</td></tr>
+        <tr><td class="row">4</td><td><code>Overview</code></td></tr>
+        <tr><td class="row">5</td><td>Overview 헤더</td></tr>
+        <tr><td class="row">6–8</td><td>PC · MO · <strong>Subtotal</strong></td></tr>
+        <tr class="gap"><td class="row">9</td><td>빈 행</td></tr>
+        <tr><td class="row">10</td><td><code>Daily Breakdown</code></td></tr>
+        <tr><td class="row">11–12</td><td>2단 헤더</td></tr>
+        <tr class="em"><td class="row">13</td><td>TOTAL</td></tr>
+        <tr><td class="row">14~</td><td>캠페인 기간의 모든 날짜 (오름차순)</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Overview · B~K</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Media</th><th>Ad</th><th>Device</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Impression</th><th class="num">Click</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">CPM</th></tr></thead>
+      <tbody>
+        <tr><td>Naver SA</td><td>Brand Search</td><td>PC</td><td class="num">정액료 PC</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>〃</td><td>〃</td><td>MO</td><td class="num">정액료 MO</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr class="em"><td>〃</td><td>〃</td><td>Subtotal</td><td class="num">PC + MO</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Media · Ad는 3행 세로 병합. Spent · Impression · Click은 Daily Breakdown TOTAL 행의 해당 블록을 수식 참조</li>
+      <li>Subtotal 행은 Total tint 배경 + 볼드 + 상단 강조선. Sheet 1 Media Summary가 이 행을 참조한다</li>
+    </ul>
+    <h4>Daily Breakdown · B~N</h4>
+    <div class="tw"><table>
+      <thead>
+        <tr><th rowspan="2">Date</th><th colspan="4" class="c">Brand Search_Total · C~F</th><th colspan="4" class="c">Brand Search_PC · G~J</th><th colspan="4" class="c">Brand Search_MO · K~N</th></tr>
+        <tr><th>Spent</th><th>Impression</th><th>Click</th><th>CTR</th><th>Spent</th><th>Impression</th><th>Click</th><th>CTR</th><th>Spent</th><th>Impression</th><th>Click</th><th>CTR</th></tr>
+      </thead>
+      <tbody>
+        <tr class="em"><td>TOTAL</td><td colspan="12" style="color:var(--muted);font-weight:400">헤더 바로 아래 — 표 하단에 두지 않는다</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Total 블록 = 그 날 존재하는 디바이스만 더한 수식</li>
+      <li>Total / PC / MO는 빈 열 없이 <strong>medium 세로 테두리 + 블록별 헤더 색</strong>으로 구분</li>
+    </ul>
+
+    <!-- Sheet 3 -->
+    <h3 id="sh3">Sheet 3 — Brand Search Keyword Report</h3>
+    <div class="tw"><table>
+      <thead><tr><th>행</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="row">2</td><td>Report Title</td></tr>
+        <tr class="gap"><td class="row">3</td><td>빈 행</td></tr>
+        <tr><td class="row">4</td><td>부제 <code>Keyword Breakdown by Device · 기간</code></td></tr>
+        <tr class="gap"><td class="row">5</td><td>빈 행</td></tr>
+        <tr><td class="row">6</td><td>Device Header (<code>Brand Search_PC</code> / <code>Brand Search_MO</code>)</td></tr>
+        <tr><td class="row">7</td><td>컬럼 헤더</td></tr>
+        <tr class="em"><td class="row">8</td><td>TOTAL</td></tr>
+        <tr><td class="row">9~</td><td>키워드 (Impression DESC)</td></tr>
+      </tbody>
+    </table></div>
+    <div class="tw"><table>
+      <thead><tr><th style="width:44%">B~H · Brand Search_PC</th><th class="c" style="width:12%">I</th><th>J~P · Brand Search_MO</th></tr></thead>
+      <tbody><tr><td>Keyword (EN) · Keyword (KO) · Spent · Imp · Click · CTR · CPC</td><td class="c" style="color:var(--muted)">Spacer</td><td>Keyword (EN) · Keyword (KO) · Spent · Imp · Click · CTR · CPC</td></tr></tbody>
+    </table></div>
+    <ul>
+      <li><strong>Spacer 열 I</strong>는 데이터·테두리·배경이 전혀 없는 완전 공백 (너비 2.2)</li>
+      <li>PC <code>B:H</code>, MO <code>J:P</code> 각각 헤더 병합 → 두 개의 독립된 표로 보인다</li>
+      <li>TOTAL: Spent·Imp·Click은 <code>SUM</code>, CTR = Click / Imp, CPC = Spent / Click</li>
+    </ul>
+
+    <!-- Sheet 4 -->
+    <h3 id="sh4">Sheet 4 — Powerlink Report</h3>
+    <p>영역 ①②는 Sheet 2와 <strong>행 번호까지 동일</strong>하다.</p>
+    <ul>
+      <li><strong>Overview</strong> — Ad = <code>Powerlink</code>. 디바이스별 예산 입력이 없으므로 <strong>PC·MO Budget은 공란, Subtotal에만 Powerlink Budget.</strong></li>
+      <li><strong>Daily Breakdown</strong> — Sheet 2와 같은 열 구성·지표 순서·결측 처리·TOTAL 위치.</li>
+    </ul>
+    <h4>영역 ③ Daily Breakdown by Keyword Group</h4>
+<pre>(빈 행)
+Daily Breakdown by Keyword Group      ← 섹션 밴드
+(빈 행)
+Branded                                ← 그룹 밴드
+Date | Branded_Total | Branded_PC | Branded_MO      ← 헤더가 바로 이어짐
+TOTAL
+날짜 …
+(빈 행)
+Shoes · Competitors · Generic          ← 같은 구조 반복
+…
+Check: Σ Groups = Total    OK | OK | OK</pre>
+    <ul>
+      <li><strong>그룹 순서 고정</strong>: Branded → Shoes → Competitors → Generic. 데이터가 없는 그룹도 헤더와 <code>No data</code>를 출력</li>
+      <li>각 그룹 표는 영역 ②와 같은 열 구성이라 세로로 비교할 수 있다</li>
+      <li>마지막 <strong>Check 행</strong>이 4개 그룹 TOTAL의 합 = 영역 ② TOTAL을 Spent·Impression·Click별로 검증해 <code>OK / MISMATCH</code> 표시</li>
+      <li>가로로 늘어놓지 않는 이유: 4그룹 × 12열 = 48열이 되어 가독성·인쇄가 무너진다</li>
+    </ul>
+
+    <!-- Sheet 5 -->
+    <h3 id="sh5">Sheet 5 — Powerlink Keyword Report</h3>
+    <p>컬럼 구성과 Spacer 규칙은 Sheet 3과 같다 (PC <code>B:H</code> · Spacer <code>I</code> · MO <code>J:P</code>).</p>
+    <div class="tw"><table>
+      <thead><tr><th>행</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="row">2</td><td>Report Title</td></tr>
+        <tr class="gap"><td class="row">3</td><td>빈 행</td></tr>
+        <tr><td class="row">4</td><td>부제 <code>Keyword Breakdown by Ad Group &amp; Device · 기간</code></td></tr>
+        <tr class="gap"><td class="row">5</td><td>빈 행</td></tr>
+        <tr><td class="row">6</td><td>Device Header (<code>Powerlink_PC</code> / <code>Powerlink_MO</code>)</td></tr>
+        <tr class="gap"><td class="row">7</td><td>빈 행</td></tr>
+        <tr><td class="row">8~</td><td>Ad Group 블록 반복</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Ad Group 블록 — Branded → Shoes → Competitors → Generic</h4>
+    <ol class="steps">
+      <li>그룹 밴드 (<code>B:H</code> / <code>J:P</code> 각각 병합)</li>
+      <li>컬럼 헤더 (블록마다 반복)</li>
+      <li><strong><code>{Group} TOTAL</code></strong> — 해당 그룹 + 디바이스 키워드만 집계</li>
+      <li>키워드 (Impression DESC)</li>
+      <li>빈 행 1개 → 다음 그룹</li>
+    </ol>
+    <p>하단 전체 합계(GRAND TOTAL)는 두지 않는다.</p>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section id="s6">
+    <div class="sec-head"><span class="sec-num">06</span><h2 class="sec">Excel 디자인 시스템</h2></div>
+    <div class="sec-rule"></div>
+
+    <h3>6.1 기본</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:18%">요소</th><th>규칙</th></tr></thead>
+      <tbody>
+        <tr><td>눈금선</td><td><strong>전 시트 숨김</strong></td></tr>
+        <tr><td>배경</td><td>데이터 셀은 흰색. 색은 헤더·강조 영역에만 제한적으로</td></tr>
+        <tr><td>테두리</td><td>일반 <code>#D9DDE4</code> thin · 강조(섹션·TOTAL·디바이스 블록 경계) <code>#AEB6C2</code> medium</td></tr>
+        <tr><td>테두리 금지</td><td>검정·두꺼운 테두리, <strong>브랜드 컬러 테두리</strong></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>6.2 Brand Color와 파생 톤</h3>
+    <p>선택한 Main 하나에서 나머지 톤을 <strong>자동 생성</strong>한다. 사용자는 Secondary를 고르지 않는다. 아래 12색을 눌러 툴과 같은 계산식으로 만든 톤을 확인할 수 있다.</p>
+    <div class="brands" id="brands" role="group" aria-label="Brand Color"></div>
+    <div class="tones" id="tones" aria-live="polite"></div>
+    <p class="caption" id="toneCaption">각 칸의 비율은 그 배경 위 글자색의 대비다 (4.5:1 이상 보장).</p>
+
+    <div class="tw"><table>
+      <thead><tr><th style="width:18%">톤</th><th style="width:34%">산출 (HSL)</th><th>사용처</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Main</strong></td><td>선택값 그대로</td><td>Report Title · Overview/Media Summary 헤더 · Daily Total 블록 헤더 · Media Summary Total · Sheet 3 TOTAL</td></tr>
+        <tr><td>PC tint</td><td class="mono">L +0.12 (≤0.72) · S ×0.92</td><td><code>_PC</code> 디바이스 헤더</td></tr>
+        <tr><td>MO tint</td><td class="mono">L +0.22 (≤0.80) · S ×0.80</td><td><code>_MO</code> 디바이스 헤더</td></tr>
+        <tr><td>Sub tints</td><td class="mono">L +0.16~0.36 · S ×0.52~0.70</td><td>2단 헤더 지표명 행 · Keyword 컬럼 헤더</td></tr>
+        <tr><td><strong>Secondary</strong></td><td class="mono">L 0.92 · S ×0.32</td><td>Section Header 밴드 · Sheet 1 정보표 라벨</td></tr>
+        <tr><td>Total tint</td><td class="mono">L 0.88 · S ×0.26</td><td>TOTAL · Subtotal · 그룹 TOTAL 행</td></tr>
+        <tr><td>Group tints</td><td class="mono">L 0.935 / 0.905 / 0.875 / 0.845 · S ×0.30</td><td>Keyword Group 밴드 4종</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>6.3 텍스트 가독성</h3>
+    <ul>
+      <li>모든 색 배경마다 <strong>흰색과 <code>#1A1A1A</code> 중 대비가 높은 쪽</strong>을 자동 선택한다 (WCAG 상대휘도).</li>
+      <li>파생 톤이 어느 쪽으로도 <strong>4.5:1</strong>을 넘지 못하면 넘을 때까지 명도를 올린다. Main은 브랜드 값이므로 변형하지 않는다.</li>
+      <li>12개 브랜드 컬러 전부에서 최저 대비 4.5:1 이상을 검증 스크립트가 확인한다.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 7 ============ -->
+  <section id="s7">
+    <div class="sec-head"><span class="sec-num">07</span><h2 class="sec">Excel 출력 규칙 요약</h2></div>
+    <div class="sec-rule"></div>
+    <div class="tw"><table>
+      <thead><tr><th style="width:18%">항목</th><th>규칙</th></tr></thead>
+      <tbody>
+        <tr><td>시트 순서</td><td>Overall · Brand Search · Brand Search Keywords · Powerlink · Powerlink Keywords</td></tr>
+        <tr><td>수식</td><td>원자료(Spent · Impression · Click)만 값. Total · CTR · CPC · CPM · Overview · Overall은 <strong>실제 Excel 수식</strong></td></tr>
+        <tr><td>오류</td><td>모든 나눗셈 <code>IFERROR(…, 0)</code> — <code>#DIV/0!</code> 없음</td></tr>
+        <tr><td>통화 서식</td><td><strong>To 통화 기호</strong> + Sheet 1의 Budget·Spent·Agency Fee는 <code>#,##0</code>, 그 외 금액(CPC·CPM·Sheet 2~5)은 <code>#,##0.00</code> — 기호 예: <code>$</code> <code>₩</code> <code>¥</code> <code>€</code> <code>S$</code></td></tr>
+        <tr><td>백분율</td><td><code>0.00%</code> — 셀에는 소수로 저장</td></tr>
+        <tr><td>정수</td><td><code>#,##0</code></td></tr>
+        <tr><td>정렬</td><td>헤더·라벨·날짜 가운데 · 숫자 우측</td></tr>
+        <tr><td>파일명</td><td><code>[Client]_[Campaign]_Weekly_Report_[CampaignEnd].xlsx</code> — 파일명에 쓸 수 없는 문자는 <code>_</code>로 치환</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 8 ============ -->
+  <section id="s8">
+    <div class="sec-head"><span class="sec-num">08</span><h2 class="sec">localStorage</h2></div>
+    <div class="sec-rule"></div>
+    <p>루트 키 <code>client_report_generator_v1</code>. 구버전 키 <code>alo_evergreen_report_v1</code>이 있으면 최초 1회 읽어 이어받는다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:26%">키</th><th>내용</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">campaign</td><td>client · name · brandColor · start · end · plCampaign</td></tr>
+        <tr><td class="mono">advBudget</td><td><code>{ currency, amount }</code> — 캠페인 총 예산</td></tr>
+        <tr><td class="mono">budgetBS / budgetPL</td><td><code>{ currency, amount }</code> — 매체별 Budget</td></tr>
+        <tr><td class="mono">bsFixedFee</td><td><code>{ pc, mo }</code> — Raw Data 통화</td></tr>
+        <tr><td class="mono">agencyFeeRate</td><td>퍼센트 숫자</td></tr>
+        <tr><td class="mono">fx</td><td><code>{ fromCountry, fromCurrency, toCountry, toCurrency, rate }</code></td></tr>
+        <tr><td class="mono">adGroupMap</td><td>Raw 광고그룹 → 표준값</td></tr>
+        <tr><td class="mono">keywordMap</td><td><code>[{ category, ko, en }]</code> · <code>keywordMapIsDefault</code></td></tr>
+        <tr><td class="mono">rawDaily / rawKeyword</td><td>정규화된 JSON (원본 CSV 텍스트 아님)</td></tr>
+        <tr><td class="mono">meta</td><td>업로드 파일명 · 업로드 시각</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>저장 용량 4.5MB 초과 시 경고</li>
+      <li>"업로드 데이터 삭제"(설정 유지) · "전체 초기화" 모두 확인 창 필수</li>
+      <li>데이터는 브라우저 밖으로 전송되지 않는다</li>
+    </ul>
+  </section>
+
+  <!-- ============ 9 ============ -->
+  <section id="s9">
+    <div class="sec-head"><span class="sec-num">09</span><h2 class="sec">설계 결정 기록</h2></div>
+    <div class="sec-rule"></div>
+    <p>요청 사이에 충돌이 있었거나 구현에서 판단이 필요했던 항목.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:44px">#</th><th style="width:18%">주제</th><th style="width:34%">결정</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr><td class="id">D1</td><td>업로드 슬롯 수</td><td>4종 데이터를 요구했으나 <strong>슬롯은 2개</strong></td><td>네이버는 일별·키워드 2개 파일로만 내려받히고 두 매체가 섞여 있음. <code>캠페인유형</code>으로 자동 분리</td></tr>
+        <tr><td class="id">D2</td><td>환율</td><td>월별 → <strong>캠페인 단일 환율</strong></td><td>주차별 보고서 간 수치 일관성</td></tr>
+        <tr><td class="id">D3</td><td>환율 방향</td><td>From / To를 따로 고르고 <code>1 To = rate From</code></td><td>어떤 통화 조합이든 같은 식으로 계산</td></tr>
+        <tr><td class="id">D4</td><td>정액료 통화</td><td>"KRW 고정" 요청을 <strong>Raw Data 통화 고정</strong>으로</td><td>범용 툴이므로. From이 KRW면 요청대로 보인다</td></tr>
+        <tr><td class="id">D5</td><td>BS 키워드 Spent</td><td>정액료를 <strong>노출 비중</strong>으로 배분</td><td>Raw 키워드 총비용이 0원. 일별 배분과 같은 기준이며 Sheet 2·3 합계가 정확히 일치</td></tr>
+        <tr><td class="id">D6</td><td>Powerlink Overview Budget</td><td>PC·MO 공란, Subtotal만</td><td>디바이스별 예산 입력이 없음</td></tr>
+        <tr><td class="id">D7</td><td>예산 이중 입력</td><td>총액과 매체별을 모두 받고 <strong>불일치 시 경고만</strong></td><td>정보표와 Media Summary의 원천이 다름. 값은 임의 수정하지 않음</td></tr>
+        <tr><td class="id">D8</td><td>Sheet 2 한정 변경</td><td>지표 순서·틀 고정·Overview 구조를 <strong>Sheet 4에도</strong></td><td>두 시트가 같은 구조를 공유해야 함</td></tr>
+        <tr><td class="id">D9</td><td>빈 행 규칙 충돌</td><td>Section Header 아래는 바로 표, 빈 행은 섹션 사이에만</td><td>최신 규격이 더 구체적</td></tr>
+        <tr><td class="id">D10</td><td>Sheet 5 합계</td><td>그룹 TOTAL을 위로 옮기며 <strong>GRAND TOTAL 제거</strong></td><td>TOTAL을 위로 올리라는 취지. 검증은 그룹 TOTAL의 합으로</td></tr>
+        <tr><td class="id">D11</td><td>Spent 정본</td><td>Powerlink Spent는 <strong>일별 파일</strong> 기준</td><td>키워드 파일과 네이버 반올림으로 수 원 차이</td></tr>
+        <tr><td class="id">D12</td><td>컬럼 인식 실패</td><td>수동 매핑 UI 대신 <strong>누락 컬럼을 알리고 중단</strong></td><td>네이버 표준 헤더는 별칭 사전으로 모두 인식됨</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 10 ============ -->
+  <section id="s10">
+    <div class="sec-head"><span class="sec-num">10</span><h2 class="sec">미해결 사항 <span class="pill open">OPEN · 8</span></h2></div>
+    <div class="sec-rule"></div>
+    <div class="tw"><table>
+      <thead><tr><th style="width:44px">#</th><th style="width:48%">질문</th><th>현재 처리</th></tr></thead>
+      <tbody>
+        <tr><td class="id">Q1</td><td>기존 ALO Weekly Report 원본 파일 미수령</td><td>서면 규격대로 구현. 폰트·밀도 등 세부 서식은 원본 대조 필요</td></tr>
+        <tr><td class="id">Q2</td><td>Brand Search 정액료가 기간 전체 금액이므로, 주차가 늘면 금액도 갱신해야 하는가</td><td>설정에 항상 노출. 미변경 시 총액 유지, 일별 단가만 재계산</td></tr>
+        <tr><td class="id">Q3</td><td>예산 이중 입력을 하나로 통합할 것인가</td><td>현재는 둘 다 받고 경고 (D7)</td></tr>
+        <tr><td class="id">Q4</td><td>Powerlink도 디바이스별 예산이 필요한가</td><td>현재는 Subtotal만 (D6)</td></tr>
+        <tr><td class="id">Q5</td><td>Brand Search 키워드 Spent를 클릭 비중으로 배분해야 하는가</td><td>현재 노출 비중 (D5)</td></tr>
+        <tr><td class="id">Q6</td><td>Agency Fee가 Advertising Budget에 포함되는가</td><td>별도 항목, 합산하지 않음</td></tr>
+        <tr><td class="id">Q7</td><td><code>에슬레져</code> / <code>에슬레져룩</code> → <code>Esléger</code> 표기가 의도된 것인가</td><td>리스트 그대로. 확인 시 <code>Athleisure</code>로 통일</td></tr>
+        <tr><td class="id">Q8</td><td>Powerlink에서 제외한 캠페인을 별도 시트로 다룰 것인가</td><td>현재는 드롭다운으로 1개만 선택</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 11 ============ -->
+  <section id="s11">
+    <div class="sec-head"><span class="sec-num">11</span><h2 class="sec">부록</h2></div>
+    <div class="sec-rule"></div>
+
+    <h3>A. 검증</h3>
+    <p>리포지토리 <code>verify/</code>의 스크립트가 <code>index.html</code>의 JS를 V8(py-mini-racer)에서 그대로 실행하고, 생성된 워크북의 셀·수식·서식을 전부 대조한다.</p>
+<pre>python run_js.py     # JS 실행 → 워크북 덤프
+python verify7.py    # 디자인 · 섹션 배치 · 용어
+python verify6.py    # Keyword 시트
+python verify5.py    # 날짜 · 결측 · Overview · 열 너비
+python smoke.py      # 환율 방향 · 통화 서식 · UI</pre>
+    <p>4개 스위트 전부 통과 · 수식 2,588개 평가 실패 0 · 색상 셀 최저 대비 5.05:1.</p>
+
+    <h3>B. 샘플 데이터 검증 <span class="aside">(2026.07.07 ~ 08.06)</span></h3>
+    <div class="tw"><table>
+      <thead><tr><th>매체</th><th class="num">고유 키워드</th><th class="num">PC / MO</th><th class="num">미매핑</th><th class="num">그룹 간 중복</th></tr></thead>
+      <tbody>
+        <tr><td>Powerlink (Evergreen_PPC)</td><td class="num">551</td><td class="num">269 / 282</td><td class="num">0</td><td class="num">0</td></tr>
+        <tr><td>Brand Search</td><td class="num">93</td><td class="num">35 / 58</td><td class="num">0</td><td class="num">—</td></tr>
+      </tbody>
+    </table></div>
+    <p>Powerlink 광고그룹 8개(<code>PC/MO × Branded/Shoes/Competitors/General</code>) 전부 자동 추론 성공.</p>
+
+    <h3>C. 키워드 번역 보정</h3>
+    <p>제공된 매핑 리스트에서 Generic 14개가 모두 <code>winter yoga wear</code>로 잘못 매핑돼 있어 개별 번역으로 보정했다. 리스트를 다시 받으면 같은 오류가 재발할 수 있다.</p>
+    <div class="tw"><table>
+      <thead><tr><th>KO</th><th>EN</th><th>KO</th><th>EN</th></tr></thead>
+      <tbody>
+        <tr><td>겨울헬스복</td><td class="mono">Winter gym wear</td><td>필라테스복세트</td><td class="mono">Pilates outfit set</td></tr>
+        <tr><td>트레이닝세트</td><td class="mono">Training set</td><td>겨울트레이닝세트</td><td class="mono">Winter training set</td></tr>
+        <tr><td>요가커버업</td><td class="mono">Yoga cover-up</td><td>겨울요가바지</td><td class="mono">Winter yoga pants</td></tr>
+        <tr><td>필라테스옷추천</td><td class="mono">Recommended Pilates clothing</td><td>겨울트레이닝복</td><td class="mono">Winter training wear</td></tr>
+        <tr><td>트레이닝복세트</td><td class="mono">Training wear set</td><td>츄리닝세트</td><td class="mono">Tracksuit set</td></tr>
+        <tr><td>여성헬스복</td><td class="mono">Women's gym wear</td><td>요가상의</td><td class="mono">Yoga tops</td></tr>
+        <tr><td>겨울트레이닝복세트</td><td class="mono">Winter training wear set</td><td>연예인요가복</td><td class="mono">Celebrity yoga wear</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>D. 변경 이력</h3>
+    <div class="tw"><table>
+      <thead><tr><th style="width:64px">라운드</th><th>주요 변경</th></tr></thead>
+      <tbody>
+        <tr><td class="id">1</td><td>최초 PRD · 5-Sheet 구조 · 월별 환율</td></tr>
+        <tr><td class="id">2</td><td>Powerlink Keyword Group · Ad Group 정규화</td></tr>
+        <tr><td class="id">3</td><td>Overall Summary Report 형태 · Device Group 구분 · Keyword Spacer</td></tr>
+        <tr><td class="id">4</td><td>범용화 (Client / Campaign Name) · B2 시작 레이아웃</td></tr>
+        <tr><td class="id">5</td><td>헤더 뒤 빈 행 · 단일 환율 · Agency Fee %</td></tr>
+        <tr><td class="id">6</td><td>입력 순서 개편 · 환율 From / To</td></tr>
+        <tr><td class="id">7</td><td>Data Through Date 제거 · 전 기간 날짜 · 결측 빈 셀 · Overview PC/MO/Subtotal</td></tr>
+        <tr><td class="id">8</td><td>Keyword 시트 Spent · CPC · TOTAL 상단 · Powerlink Budget 통화</td></tr>
+        <tr><td class="id">9</td><td>Brand Color 시스템 · 눈금선 제거 · 연회색 테두리 · Section 바로 아래 표 · Cost → Spent</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  </main>
+</div>
+
+<footer>
+  <span>Weekly Report Generator · PRD</span>
+  <span>2026-09-11 · commit d08d266</span>
+</footer>
+
+<script>
+/* Same colour maths as index.html, so the swatches match the generated workbook. */
+(function(){
+  const BRANDS=[
+    ['Black','#1A1A1A'],['Navy','#1F3864'],['Blue','#2E5395'],['Sky Blue','#3E8FD0'],
+    ['Green','#2E7D4F'],['Mint','#2FA89B'],['Yellow','#E0A81E'],['Orange','#DD7A26'],
+    ['Red','#C0392B'],['Pink','#D25A80'],['Purple','#6B4C9A'],['Gray','#5A6472']
+  ];
+  const hex2rgb=h=>{h=h.replace('#','');return[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));};
+  const rgb2hex=(r,g,b)=>'#'+[r,g,b].map(n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0')).join('').toUpperCase();
+  function rgb2hsl(r,g,b){
+    r/=255;g/=255;b/=255;
+    const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,l=(mx+mn)/2;
+    const s=d===0?0:d/(1-Math.abs(2*l-1));
+    let h=0;
+    if(d!==0){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; }
+    return[h,s,l];
+  }
+  function hsl2rgb(h,s,l){
+    const c=(1-Math.abs(2*l-1))*s,x=c*(1-Math.abs((h/60)%2-1)),m=l-c/2;
+    let r=0,g=0,b=0;
+    if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+    else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+    return[(r+m)*255,(g+m)*255,(b+m)*255];
+  }
+  const clamp=v=>Math.max(0,Math.min(1,v));
+  function tone(hex,l,sm){const[h,s]=rgb2hsl(...hex2rgb(hex));return rgb2hex(...hsl2rgb(h,clamp(s*sm),clamp(l)));}
+  function lum(hex){const[r,g,b]=hex2rgb(hex).map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});return .2126*r+.7152*g+.0722*b;}
+  const ratio=(a,b)=>{const x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+  const textOn=hex=>ratio(hex,'#FFFFFF')>=ratio(hex,'#1A1A1A')?'#FFFFFF':'#1A1A1A';
+  function safeTone(hex,l,sm){let o=tone(hex,l,sm);for(let i=0;i<32&&ratio(o,textOn(o))<4.5;i++){l=Math.min(.97,l+.02);o=tone(hex,l,sm);}return o;}
+  function theme(main){
+    const L=rgb2hsl(...hex2rgb(main))[2];
+    const step=(dl,sm,cap)=>safeTone(main,Math.min(cap,L+dl),sm);
+    const g=[.935,.905,.875,.845].map(l=>safeTone(main,l,.30));
+    return[
+      ['Main',main.toUpperCase()],
+      ['PC tint',step(.12,.92,.72)],['MO tint',step(.22,.80,.80)],
+      ['Sub · Total',step(.16,.70,.78)],['Sub · PC',step(.28,.62,.84)],['Sub · MO',step(.36,.52,.88)],
+      ['Secondary',safeTone(main,.92,.32)],['Total tint',safeTone(main,.88,.26)],
+      ['Branded',g[0]],['Shoes',g[1]],['Competitors',g[2]],['Generic',g[3]]
+    ];
+  }
+  const box=document.getElementById('brands'), out=document.getElementById('tones'), cap=document.getElementById('toneCaption');
+  function render(name){
+    const hex=BRANDS.find(b=>b[0]===name)[1];
+    box.querySelectorAll('.brand').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.n===name)));
+    let worst=99;
+    out.innerHTML=theme(hex).map(([label,c])=>{
+      const t=textOn(c), k=ratio(c,t); worst=Math.min(worst,k);
+      return `<div class="tone" style="background:${c};color:${t}"><span class="t">${label}</span>`+
+             `<span><span class="h">${c}</span><br><span class="r">${k.toFixed(1)}:1</span></span></div>`;
+    }).join('');
+    cap.textContent=`${name} — 12개 톤 중 최저 대비 ${worst.toFixed(2)}:1. 각 칸의 비율은 그 배경 위 글자색의 대비다.`;
+  }
+  box.innerHTML=BRANDS.map(([n,h])=>
+    `<button type="button" class="brand" data-n="${n}" aria-pressed="false">`+
+    `<span class="sw" style="background:${h}"></span><span class="nm">${n}${n==='Navy'?' <span class="hx">기본</span>':''}<span class="hx">${h}</span></span></button>`).join('');
+  box.addEventListener('click',e=>{const b=e.target.closest('.brand'); if(b) render(b.dataset.n);});
+  render('Navy');
+})();
+</script>
